@@ -4726,18 +4726,24 @@ private:
 //	для старого варианта Frame (хранение Value) - 0.29 с
 //	для нового варианта Frame (хранение stream) - 0.27 с
 
-RI Frame::assign(std::istream *isIFLRBody) {
+RI Frame::assign(std::istream *isIFLRBody) 
+{
 	m_pIflr = isIFLRBody;
-	Input input_file(m_pIflr);
+    
+	Input    input_file(m_pIflr);
 	SingleValue::read(m_num, input_file, Representation::UVARI);
 // - NB: Здесь возможна единственная ошибка: DataTrunc, генерирующая исключение
 	m_pSlots = input_file.getPos();
-	if (m_num == 0) return RI(RI::BadFrameNum, 1).toCritical();
-	else return RI();
+
+	if (m_num == 0) 
+        return RI(RI::BadFrameNum, 1).toCritical();
+	else 
+        return RI();
 }
 
-void Frame::assignSlots(std::istream *isIFLRBody) {
-		assert(m_pIflr == NULL);
+void Frame::assignSlots(std::istream *isIFLRBody) 
+{
+	assert(m_pIflr == NULL);
 	m_pIflr = isIFLRBody;
 }
 
@@ -4847,7 +4853,11 @@ private:
 	}
 // Функции чтения
 	RI parse();
-	bool loadFrames() const { return m_rparent->loadFramesToMemory(); }
+	bool loadFrames() const 
+    { 
+        return m_rparent->loadFramesToMemory(); 
+    }
+
 // Функции записи
 	void notifyChanged(Item *i) {
 		const Attribute::Impl *pa = dynamic_cast<const Attribute::Impl *>(i);
@@ -4961,20 +4971,30 @@ RI FrameType::Impl::linkChannels(LogicalFile::ObjectIt beginChannel,
 //	return ri;
 //}
 
-RI FrameType::Impl::makeNextFrame(std::istream *isIFLRBody,
-								  const LogicalRecordLocation &loc) {
-	Frame *pf = new Frame;
-	RI ri = pf->assign(isIFLRBody);
-	if (pf->number() != mvp_frames.size() + 1) ri.upTo(RI(RI::BadFrameNum, 2));
-	pf->location = loc;
-	if (!loadFrames()) pf->clearSlots();
-	mvp_frames.push_back(pf);
+RI FrameType::Impl::makeNextFrame(std::istream *file_body, const LogicalRecordLocation &loc) 
+{
+	Frame *frame = new Frame;
+	RI     ri    = frame->assign(file_body);
+
+	if (frame->number() != mvp_frames.size() + 1) 
+        ri.upTo(RI(RI::BadFrameNum, 2));
+
+	frame->location = loc;
+
+	if (!loadFrames()) 
+        frame->clearSlots();
+
+	mvp_frames.push_back(frame);
 	return ri;
 }
 
-void FrameType::Impl::assignSlots(uint32 frameIndex, std::istream *isIFLRBody) {
-		assert(!loadFrames());
-	if (m_frix != -1) mvp_frames[m_frix]->clearSlots();
+void FrameType::Impl::assignSlots(uint32 frameIndex, std::istream *isIFLRBody) 
+{
+	assert(!loadFrames());
+
+	if (m_frix != -1) 
+        mvp_frames[m_frix]->clearSlots();
+
 	mvp_frames[frameIndex]->assignSlots(isIFLRBody);
 	m_frix = frameIndex;
 }
@@ -5958,8 +5978,9 @@ void LogicalFile::Impl::makeNextSet(Input &input_body_EFLR, EFLRType type)
 
 void LogicalFile::Impl::makeNextFrame(std::istream *isIFLRBody, const LogicalRecordLocation &lrloc, ErrorLogImpl *err) 
 {
-	Input inBody(isIFLRBody, err, -1);
-	ObjectName obn;
+	Input        inBody(isIFLRBody, err, -1);
+	ObjectName   obn;
+
 	SingleValue::read(obn, inBody, Representation::OBNAME);
     
 	if (obn.ident().empty()) 
@@ -5986,6 +6007,7 @@ void LogicalFile::Impl::makeNextFrame(std::istream *isIFLRBody, const LogicalRec
 //	const LogicalRecordLocation *ploc = m_rparent->loadFramesToMemory() ?
 //											NULL : &m_lrloc;
 //	RI ri = pft->pim->makeNextFrame(isIFLRBody, ploc);
+
 	RI ri = pft->pim->makeNextFrame(isIFLRBody, lrloc);
 
 	if (!ri.ok()) 
