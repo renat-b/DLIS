@@ -70,10 +70,12 @@ inline size_t elemCount(const std::vector<T> &v) { return v.size(); }
 
 // Поиск в контейнере с элементами любого вида
 template<class InputIt, class GetKeyPredicate, class KeyType>
-InputIt findByKey(InputIt first, InputIt last,
-				  GetKeyPredicate keyOf, const KeyType &key) {
-	for (; first != last; ++first) {
-		if (keyOf(*first) == key) return first;
+InputIt findByKey(InputIt first, InputIt last, GetKeyPredicate keyOf, const KeyType &key) 
+{
+	for (; first != last; ++first) 
+    {
+		if (keyOf(*first) == key) 
+            return first;
 	}
 	return last;
 }
@@ -119,7 +121,8 @@ InputIt findByKey(InputIt first, InputIt last,
 //	return true;
 //}
 template<class InputIt, typename GetKeyPredicate>
-bool allUniqueKeys(InputIt first, InputIt last, GetKeyPredicate keyOf) {
+bool allUniqueKeys(InputIt first, InputIt last, GetKeyPredicate keyOf) 
+{
 //	if (first == last) return true;
 //	InputIt predLast = last;
 //	--predLast;
@@ -127,9 +130,11 @@ bool allUniqueKeys(InputIt first, InputIt last, GetKeyPredicate keyOf) {
 /* - NB: Использование predLast является оптимизацией; отказываемся от нее, пока
 		 итератор ObjectConstIt не поддерживает оператор декремента (а также
 		 чтобы не ограничивать применение шаблона forward-итераторами) */
-	for (; first != last; ++first) {
+	for (; first != last; ++first) 
+    {
 		InputIt next = first;
-		if (findByKey(++next, last, keyOf, keyOf(*first)) != last) return false;
+		if (findByKey(++next, last, keyOf, keyOf(*first)) != last) 
+            return false;
 		// - NB: Ситуация равенства входных итераторов в findByKey предусмотрена
 	}
 	return true;
@@ -2971,13 +2976,19 @@ public:
 		}
 	}
 		virtual RoleGroup roleGroup() = 0;
-	virtual void read(Input &input_file) {
+	virtual void read(Input &input_file) 
+    {
 		reset();
 		m_d.read(input_file);
-			if (roleGroupOf(m_d.role) != roleGroup()) throw RI(RI::ProgErr, 7);
+
+        if (roleGroupOf(m_d.role) != roleGroup()) 
+            throw RI(RI::ProgErr, 7);
+
 		readCharacteristics(input_file);
 	}
-	virtual void write(Output &out) const {
+
+	virtual void write(Output &out) const 
+    {
 		m_d.write(out);
 		writeCharacteristics(out);
 	}
@@ -3290,23 +3301,37 @@ public:
 //	RI getValue(vector<T> &value) const {
 //		return component().cvalue().getAll(value);
 //	}
+
 	template <class T>
-	RI getValue(T &value, size_t index = 0) const {
+	RI getValue(T &value, size_t index = 0) const 
+    {
 		return getValue(&value, index, 1);
 	}
+
 	template <class T>
-	RI getValue(vector<T> &value) const {
+	RI getValue(vector<T> &value) const 
+    {
 		value.resize(component().count());
 		return getValue(&value[0], 0, value.size());
 	}
+
 	template <class T>
-	RI getValue(T *p, size_t index, size_t count) const {
+	RI getValue(T *p, size_t index, size_t count) const 
+    {
 		return component().cvalue().get(p, index, count);
 	}
+
 	const Component &component() const { return m_c; }
+
 	bool wrong() const { return m_wrong; }
+
 	void markWrong() { m_wrong = true; }
-	void read(Input &input_file) { m_c.read(input_file); }
+
+	void read(Input &input_file) 
+    { 
+        m_c.read(input_file); 
+    }
+
 	void linkTemplate(const Attribute *pa) {
 		m_c.linkTemplate(&pa->pim->component());
 	}
@@ -3575,6 +3600,7 @@ void BaseObjectImpl::read(Input &input_file)
 
 		mvp_attrs.push_back(pa);
 	}
+
 	checkAttributesOnRead();
 }
 
@@ -3730,6 +3756,7 @@ public:
 			if (m_n.ident().empty()) 
                 input_file.addIssue(RI::NoObjName);
 		}
+
 		void writeCharacteristics(Output &out) const {
 			FormatBits f = format();
 			if (f[bName]) SingleValue::write(out, m_n, Representation::OBNAME);
@@ -4158,10 +4185,11 @@ void Object::Impl::read(Input &input_file)
 	BaseObjectImpl::read(input_file);
 
 	RI ri = adjustToTemplate();
+
 	if (!ri.ok()) 
         input_file.addIssue(ri);
 
-// Удаляем Absent-атрибуты, а также атрибуты, отмеченные как некорректные
+    // Удаляем Absent-атрибуты, а также атрибуты, отмеченные как некорректные
 	for (int n = mvp_attrs.size() - 1; n >= 0; --n) 
     {
 		Attribute *pa = mvp_attrs[n];
@@ -4171,7 +4199,7 @@ void Object::Impl::read(Input &input_file)
 		if (absent || pa->pim->wrong()) 
             mvp_attrs.erase(mvp_attrs.begin() + n);
 	}
-/* - NB: С этого момента индексы атрибутов в Set Template и самом объекте могут
+         /* - NB: С этого момента индексы атрибутов в Set Template и самом объекте могут
 		 отличаться (поэтому следует пользоваться исключительно ссылками
 		 Attribute::Impl::Component::m_rtplc) */
 }
@@ -4198,19 +4226,23 @@ void Object::Impl::checkAttributesOnRead() {
 	}
 }
 
-RI Object::Impl::adjustToTemplate() {
-	RI ri;
+RI Object::Impl::adjustToTemplate() 
+{
+	RI   ri;
 	uint nonInvAttrCnt = m_rtpl->getNonInvariantAttributeCount();
-	if (mvp_attrs.size() > nonInvAttrCnt) {
+
+	if (mvp_attrs.size() > nonInvAttrCnt) 
+    {
 		ri = RI(RI::ManyObjAttrs);
-		erasePtrContainer(mvp_attrs,
-						  mvp_attrs.end() - nonInvAttrCnt, mvp_attrs.end());
+		erasePtrContainer(mvp_attrs, mvp_attrs.end() - nonInvAttrCnt, mvp_attrs.end());
 		// - Удаляем лишние атрибуты
 	}
 	// - NB: Не выполняем проверку mvp_attrs.size() < nonInvAttrCnt,
 	//		 т.к. последние атрибуты в списке могут быть опущены
-	for (uint n = mvp_attrs.size(); n < m_rtpl->attributeCount(); ++n) {
+	for (uint n = mvp_attrs.size(); n < m_rtpl->attributeCount(); ++n) 
+    {
 		Attribute *pa = new Attribute(this);
+
 		pa->pim->linkTemplate(m_rtpl->pcAttribute(n));
 		mvp_attrs.push_back(pa);
 	}
@@ -5924,31 +5956,38 @@ void LogicalFile::Impl::makeNextSet(Input &input_body_EFLR, EFLRType type)
 	}
 }
 
-void LogicalFile::Impl::makeNextFrame(std::istream *isIFLRBody,
-									  const LogicalRecordLocation &lrloc,
-									  ErrorLogImpl *err) {
+void LogicalFile::Impl::makeNextFrame(std::istream *isIFLRBody, const LogicalRecordLocation &lrloc, ErrorLogImpl *err) 
+{
 	Input inBody(isIFLRBody, err, -1);
 	ObjectName obn;
 	SingleValue::read(obn, inBody, Representation::OBNAME);
-	if (obn.ident().empty()) {
-		inBody.addIssue(RI::BadFrame, 1); return;
+    
+	if (obn.ident().empty()) 
+    {
+		inBody.addIssue(RI::BadFrame, 1); 
+        return;
 	}
+
 	ObjectIt iteFr = pin->endObject(Object::FRAME);
-	ObjectIt ito = findByKey(pin->beginObject(Object::FRAME), iteFr,
-							 Object::nameOf, obn);
-/* - NB: Поиск можно оптимизировать, запоминая последний найденный тип фрейма
-		 (Frame Object), но это имеет смысл, если разных типов много */
-	if (ito == iteFr) {
-		inBody.addIssue(RI::BadFrame, 2); return;
+	ObjectIt ito   = findByKey(pin->beginObject(Object::FRAME), iteFr, Object::nameOf, obn);
+    /* - NB: Поиск можно оптимизировать, запоминая последний найденный тип фрейма
+	(Frame Object), но это имеет смысл, если разных типов много */
+	if (ito == iteFr) 
+    {
+		inBody.addIssue(RI::BadFrame, 2); 
+        return;
 	}
+
 	inBody.close();
 	// - т.к. поток isIFLRBody далее передается в FRAME-объект
 	//	 (где может быть уничтожен)
+
 	FrameType *pft = dynamic_cast<FrameType *>(*ito);
 //	const LogicalRecordLocation *ploc = m_rparent->loadFramesToMemory() ?
 //											NULL : &m_lrloc;
 //	RI ri = pft->pim->makeNextFrame(isIFLRBody, ploc);
 	RI ri = pft->pim->makeNextFrame(isIFLRBody, lrloc);
+
 	if (!ri.ok()) 
         inBody.addIssue(ri);
 }
@@ -5967,13 +6006,14 @@ void LogicalFile::Impl::eraseObject(LogicalFile::ObjectIt it) {
 	mvp_sets[pd->indexSet]->eraseObject(pd->indexObject);
 }
 
-RI LogicalFile::Impl::parseObjects() {
-	RI ri;
+RI LogicalFile::Impl::parseObjects() 
+{
+	RI   ri;
 	bool ok;
-		ok = true;
-	ok = allUniqueKeys(pin->cbeginObject(Object::CHANNEL), pin->cendObject(),
-					   Object::nameOf);
-	if (!ok) return RI(RI::AmbigChans, 2).toCritical();
+
+	ok = allUniqueKeys(pin->cbeginObject(Object::CHANNEL), pin->cendObject(), Object::nameOf);
+	if (!ok) 
+        return RI(RI::AmbigChans, 2).toCritical();
 
 //	for (int ntype = 0; ntype < Object::typeCount; ++ntype) {
 //		Object::Type ot = (Object::Type)ntype;
@@ -5984,13 +6024,13 @@ RI LogicalFile::Impl::parseObjects() {
 //	}
 // - NB: Не выполняет проверку уникальности объектов типов Object::TypeOther
 
-	ok = allUniqueKeys(pin->cbeginObject(), pin->cendObject(),
-					   Object::referenceTo);
+	ok = allUniqueKeys(pin->cbeginObject(), pin->cendObject(), Object::referenceTo);
 	// - NB: Использование Object::referenceTo позволяет простым образом
 	//		 проверить уникальность имен объектов всех типов, в том числе
 	//		 входящих в Object::TypeOther
 	// - NB: Значительно замедляет выполнение (см. замеры ниже)!
-	if (!ok) ri = RI(RI::AmbigObjs);
+	if (!ok) 
+        ri = RI(RI::AmbigObjs);
 
 /* Время выполнения функции Reader::Impl::read (release-сборка)
    на файле RST.dlis (39 МБайт)
@@ -6019,22 +6059,32 @@ RI LogicalFile::Impl::parseObjects() {
 
 	ObjectIt itbCh = pin->beginObject(Object::CHANNEL),
 			 iteCh = pin->endObject(Object::CHANNEL);
+
 	ObjectIt itbFr = pin->beginObject(Object::FRAME),
 			 it = pin->endObject(Object::FRAME);
-	if (it != itbFr) {
+
+	if (it != itbFr) 
+    {
 		--it;
-		while (true) {
+		while (true) 
+        {
 			bool atbegin = it == itbFr;
-			FrameType *pfo = dynamic_cast<FrameType *>(*it);
-			RI riCh = pfo->pim->linkChannels(itbCh, iteCh);
+
+			FrameType *pfo  = dynamic_cast<FrameType *>(*it);
+			RI         riCh = pfo->pim->linkChannels(itbCh, iteCh);
+
 //			if (riCh.retCode() == RI::NoChan) eraseObject(it);
-				if (!pfo->pim->allChannelsLinked()) eraseObject(it);
+            if (!pfo->pim->allChannelsLinked()) 
+                eraseObject(it);
 			// - Удаляем FRAME-объект, если не все его CHANNEL-объекты найдены
-			else if (!atbegin) --it;
+			else if (!atbegin) 
+                --it;
 // - NB: Декремент данного итератора за пределами контейнера приводит к ошибке:
 //		 соответствует ли это требованиям к итераторам?
 			ri.upTo(riCh);
-			if (atbegin) break;
+
+			if (atbegin) 
+                break;
 		}
 	}
 // - NB: Надо правильнее организовать этот цикл или, еще лучше, ввести

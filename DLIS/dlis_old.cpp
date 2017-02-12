@@ -6,7 +6,7 @@ int main(int argc, char *argv[])
 {
     Reader dlis;
 
-    dlis.open("D:\\src\\DLIS task\\Dlis examples\\Sample2.dlis"); 
+    dlis.open("C:\\Users\\User\\Projects\\DLIS\\Dlis_examples\\Sample2.dlis"); 
 
     RI r = dlis.read();
 
