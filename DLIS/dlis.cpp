@@ -1112,29 +1112,47 @@ public:
 	static void skip(const byte *&p, Code code);
 	bool empty() const { return m_raw.size() == 0; }
 	void clear() { m_raw.clear(); }
+
 protected:
-	static void readBytes(byte *p, Input &input_file, size_t count) {
+	static void readBytes(byte *p, Input &input_file, size_t count) 
+    {
 		input_file.read(p, count);
 	}
-	static void readBytes(byte *p, const byte *&pin, size_t count) {
+
+	static void readBytes(byte *p, const byte *&pin, size_t count) 
+    {
 		memcpy(p, pin, count);
 		pin += count;
 	}
-	static void writeBytes(Output &out, const byte *p, size_t count) {
+
+	static void writeBytes(Output &out, const byte *p, size_t count) 
+    {
 		out.write(p, count);
 	}
-	static void writeBytes(Value &rawVal, const byte *p, size_t count) {
+
+	static void writeBytes(Value &rawVal, const byte *p, size_t count) 
+    {
 		rawVal.readBytesNext(p, count);
 	}
+
 	const byte *cfirstBytePtr() const
-		{ return empty() ? NULL : &m_raw.front(); }
+	{ 
+        return empty() ? NULL : &m_raw.front(); 
+    }
+
 	byte *firstBytePtr()
-		{ return const_cast<byte *>(cfirstBytePtr()); }
+	{ 
+        return const_cast<byte *>(cfirstBytePtr()); 
+    }
+
 	template <typename In>
-	void readBytesNext(In &input_file, size_t count) {
-		if (count == 0) return;
+	void readBytesNext(In &input_file, size_t count) 
+    {
+		if (count == 0) 
+            return;
 		// - иначе индекс endpos выйдет за пределы контейнера m_raw
 		size_t endpos = m_raw.size();
+
 		extendBy(count);
 		readBytes(&m_raw[endpos], input_file, count);
 	}
@@ -1805,7 +1823,8 @@ template <typename InType,
 		  void (Value:: *process)(InType &, Representation::Code)>
 void Value::processCompound(InType &input_file, Code code) {
 	using namespace Representation;
-	switch (code) {
+	switch (code) 
+    {
 	case OBNAME:
 		(this->*process)(input_file, ORIGIN);
 		(this->*process)(input_file, USHORT);
@@ -1827,39 +1846,62 @@ template <typename In>
 void Value::readNext(In &input_file, Code code, size_t count) 
 {
 	using namespace Representation;
-	if (count == 0) return;
+
+	if (count == 0) 
+        return;
+
 	size_t pos = m_raw.size();
 	// - Запоминаем текущее положение, т.к. далее оно будет изменено
 	//	 в прямых и косвенных (через readNext) вызовах функции readBytesNext
-	uint elsize = getSize(code);
-	if (elsize != -1) {
+	int elsize = (int)getSize(code);
+
+	if (elsize > -1) 
+    {
 		size_t size = elsize * count;
+
 		readBytesNext(input_file, size);
 	}
-	else {	// Значение переменной длины
+	else 
+    {	// Значение переменной длины
 		if (count > 1)
-			for (uint32 n = 0; n < count; ++n) readNext(input_file, code);
-		else {
-			switch (code) {
-			case UVARI: case ORIGIN: {
+			for (uint32 n = 0; n < count; ++n) 
+                readNext(input_file, code);
+		else 
+        {
+			switch (code) 
+            {
+			case UVARI: 
+            case ORIGIN: 
+            {
 				readBytesNext(input_file, 1);		// Первый байт кода UVARI
+
 				uint len = Convertor::getSizeUVARI(m_raw[pos]);
-				if (len > 1) readBytesNext(input_file, len - 1);
+
+				if (len > 1) 
+                    readBytesNext(input_file, len - 1);
 				break;
+
 			}
 			case ASCII:
-			case IDENT:	case UNITS: {
+			case IDENT:	
+            case UNITS: 
+            {
 				uint32 strLen;
-				if (code == ASCII) {
+
+				if (code == ASCII) 
+                {
 					readNext(input_file, UVARI);
+
 					const byte *p = &m_raw[pos];
 					Convertor::fromRaw(strLen, p, UVARI);
 					// - NB: Не проверяем код возврата, т.к. используется uint32
 				}
-				else {
+				else 
+                {
 					readNext(input_file, USHORT);
 					strLen = m_raw[pos];
 				}
+
 				readBytesNext(input_file, strLen);
 				break;
 			}
@@ -1868,15 +1910,18 @@ void Value::readNext(In &input_file, Code code, size_t count)
 				readNext(input_file, USHORT);
 				readNext(input_file, IDENT);
 				break;
+
 			case OBJREF:
 				readNext(input_file, IDENT);
 				readNext(input_file, OBNAME);
 				break;
+
 			case ATTREF:
 				readNext(input_file, IDENT);
 				readNext(input_file, OBNAME);
 				readNext(input_file, IDENT);
 				break;
+
 			} // switch (code)
 		} // if (count...)
 	} // if (elsize...)
@@ -2116,8 +2161,10 @@ private:
 };
 
 template <typename T>
-/*static*/ RI SingleValue::read(T &var, Input &input_file, Code code) {
+/*static*/ RI SingleValue::read(T &var, Input &input_file, Code code) 
+{
 	SingleValue v;
+
 	v.read(input_file, code);
 	return v.get(&var, 0, 1);
 }
@@ -2181,38 +2228,54 @@ void SingleValue::setNull(Code code, size_t count) {
 //}
 
 template <typename T>
-RI SingleValue::get(T *pTo, size_t index, size_t count) const {
-		assert(index + count <= m_cnt);
-	if (m_cnt == 0) return RI(RI::NoVal).toCritical();
-	if (index >= m_cnt) return RI(RI::BigValIndex).toCritical();
+RI SingleValue::get(T *pTo, size_t index, size_t count) const 
+{
+	assert(index + count <= m_cnt);
+
+	if (m_cnt == 0) 
+        return RI(RI::NoVal).toCritical();
+
+	if (index >= m_cnt) 
+        return RI(RI::BigValIndex).toCritical();
+
 	const byte *p = cfirstBytePtr();
-	if (index > 0) {
-	// Пропускаем элементы с индексами, меньшими чем index
+
+	if (index > 0) 
+    {
+	    // Пропускаем элементы с индексами, меньшими чем index
 		uint sz = Representation::getSize(m_rc);
 		if (sz != -1)	// - если элементы фиксированного размера
 			p += index * sz;
 		else
-			for (size_t n = 0; n < index; ++n) skip(p, m_rc);
+			for (size_t n = 0; n < index; ++n) 
+                skip(p, m_rc);
 	}
+
 	if (count == 1)
 		return Type<T>::fromRaw(*pTo, p, m_rc, true);
-	else {
+	else 
+    {
 		if (Type<T>::cannotHoldCode(*pTo, m_rc))
 			return RI(RI::FromRawTypeErr, 4).toCritical();
-	// Считываем m_cnt элементов и возвращаем "накопленный" код возврата
+
+	    // Считываем m_cnt элементов и возвращаем "накопленный" код возврата
 		RI riAll, ri;
-		for (size_t n = 0; n < count; ++n) {
+
+		for (size_t n = 0; n < count; ++n) 
+        {
 			ri = Type<T>::fromRaw(*pTo++, p, m_rc, false);
-			if (ri.critical()) return ri;
-/* - NB: Условие ri.critical()==true должно выполняться только на первом
-		 элементе значения (n==0), и оно подразумевает невозможность
-		 преобразования любого значения в коде m_rc в тип T (однако логичнее
-		 было бы такую проверку полностью вынести в функции cannotHoldXXX
-		 классов - наследников AnyType, чтобы в этой проверке не было бы
-		 необходимости)
-		 Исключение: Ошибка формата входного значения в Convertor::fromRaw() */
+			if (ri.critical()) 
+                return ri;
+            /* - NB: Условие ri.critical()==true должно выполняться только на первом
+		    элементе значения (n==0), и оно подразумевает невозможность
+		    преобразования любого значения в коде m_rc в тип T (однако логичнее
+		    было бы такую проверку полностью вынести в функции cannotHoldXXX
+		    классов - наследников AnyType, чтобы в этой проверке не было бы
+		    необходимости)
+		    Исключение: Ошибка формата входного значения в Convertor::fromRaw() */
 			riAll.upTo(ri);
 		}
+
 		return riAll;
 	}
 }
@@ -4169,7 +4232,8 @@ bool Object::Impl::restoreAttribute(typename TagX::Owner *owner,
 }
 
 template <class TagX>
-void Object::Impl::storeAttribute(typename TagX::Owner *owner, const TagX &t) {
+void Object::Impl::storeAttribute(typename TagX::Owner *owner, const TagX &t) 
+{
 	pAttribute(t.label())->pim->setValue(owner->*t.pm);
 }
 // - NB: Использование идентификатора Tag в качестве параметра шаблона функции

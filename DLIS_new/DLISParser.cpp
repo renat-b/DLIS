@@ -633,7 +633,16 @@ bool CDLISParser::ReadComponent()
 
 bool CDLISParser::ReadComponentSet()
 {
-    return true;
+    bool   r = m_component_header.role == Redundant_Set;
+
+    assert(r);
+
+    if (r)
+    {
+
+    } 
+
+    return r;
 }
 
 
@@ -673,7 +682,9 @@ bool CDLISParser::HeaderSegmentGet(SegmentHeader *header)
     {
         byte    *pad_len;
         char    *data;  
-
+        // рассчитаем количество padding (выравнивающих) символов для этого :
+        // прочитаем значение по адресу 
+        // начальное смещение + размер данных - 1 байт (т.к. в этом месте находится значение количества padding байт)
         data = m_visible_record.current + size_header;
         
         pad_len = (byte *)(data) + header->length_data - sizeof(byte);
