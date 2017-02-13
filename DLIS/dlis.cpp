@@ -1588,12 +1588,11 @@ private:
 //	}
 //---------------------------
 	template <typename CodeIntType, typename CustomIntType>
-	static RI fromRawInt(CustomIntType &val, const byte *&p, bool test,
-						 Code c = Representation::typeCode<CodeIntType>()) 
+	static RI fromRawInt(CustomIntType &val, const byte *&p, bool test, Code c = Representation::typeCode<CodeIntType>()) 
     {
 		using namespace Representation;
 
-		CodeIntType     inVal;
+		CodeIntType  inVal;
 
 		if (c == typeCode<CodeIntType>())
 			fromRaw(inVal, p);		                // - точное соответствие типов
