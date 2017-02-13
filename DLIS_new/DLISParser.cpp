@@ -685,6 +685,7 @@ bool CDLISParser::HeaderSegmentGet(SegmentHeader *header)
         // рассчитаем количество padding (выравнивающих) символов для этого :
         // прочитаем значение по адресу 
         // начальное смещение + размер данных - 1 байт (т.к. в этом месте находится значение количества padding байт)
+        // по этому адресу содержится количество padding символов
         data = m_visible_record.current + size_header;
         
         pad_len = (byte *)(data) + header->length_data - sizeof(byte);
@@ -723,43 +724,18 @@ bool CDLISParser::HeaderComponentGet()
 }
 
 
-bool CDLISParser::ReadLogicalRecordHeader()
+bool CDLISParser::ReadRawData(void *dst, size_t len)
 {
-    return false;
-}
-
-
-bool CDLISParser::ReadLogicalRecordBody()
-{
-    return false;
-}
-
-
-bool CDLISParser::ReadRawData(void *dst, const char **src, size_t len)
-{
-    memcpy(dst, *src, len);
-    *src = *src + len;
-
-    return true;
-}
-
-
-bool CDLISParser::ReadString(char *dst, const char **src)
-{
-    size_t        size;
-    const char   *p = *src;
-
-    size = *p;
-    p++;
+    memcpy(dst, m_segment.current, len);
     
-    memcpy(dst, p, size);
-    *src = *src + size; 
+    m_segment.current += len;
+    m_segment.len     -= len;
 
     return true;
 }
 
 
-bool CDLISParser::ReadRepresentationCode(const RepresentaionCodes code, void *dst, const char **src)
+bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void *dst)
 {
     char tmp[128] = { 0 };
 
@@ -789,7 +765,10 @@ bool CDLISParser::ReadRepresentationCode(const RepresentaionCodes code, void *ds
             	for (int i = 0; i < _countof(s_rep_codes_lenght); i++)
             	    if (s_rep_codes_lenght[i].code == code)
             	    {
-            	        ReadRawData(dst, src, s_rep_codes_lenght[i].lenght);
+            	        ReadRawData(&tmp[0], s_rep_codes_lenght[i].lenght);
+
+                        m_segment.current += s_rep_codes_lenght[i].lenght;
+                        m_segment.len     -= s_rep_codes_lenght[i].lenght;
             		    break;
             	    }
 
@@ -799,7 +778,7 @@ bool CDLISParser::ReadRepresentationCode(const RepresentaionCodes code, void *ds
         case RC_IDENT:
         case RC_ASCII:
         case RC_OBNAME:    
-            ReadString((char *)dst, src); 
+            //ReadString((char *)dst, src); 
             break;
 
         default:
@@ -811,51 +790,51 @@ bool CDLISParser::ReadRepresentationCode(const RepresentaionCodes code, void *ds
 }
 
 
-bool CDLISParser::ReadCharacteristics(byte format, const char **src)
+bool CDLISParser::ReadCharacteristics()
 {
     size_t              val;
     char                str[128];
     RepresentaionCodes  rep_code;
     
-    if (format & TypeAttribute::TypeAttrLable)
-        ReadRepresentationCode(RC_IDENT, &val, src);
+    if (m_component_header.format & TypeAttribute::TypeAttrLable)
+        ReadRepresentationCode(RC_IDENT, &val);
 
-    if (format & TypeAttribute::TypeAttrCount)
-        ReadRepresentationCode(RC_UVARI, &val, src);
+    if (m_component_header.format & TypeAttribute::TypeAttrCount)
+        ReadRepresentationCode(RC_UVARI, &val);
 
-    if (format & TypeAttribute::TypeAttrRepresentationCode)
-        ReadRepresentationCode(RC_USHORT, &rep_code, src);
+    if (m_component_header.format & TypeAttribute::TypeAttrRepresentationCode)
+        ReadRepresentationCode(RC_USHORT, &rep_code);
 
-    if (format & TypeAttribute::TypeAttrUnits)
-        ReadRepresentationCode(RC_IDENT, str, src);
+    if (m_component_header.format & TypeAttribute::TypeAttrUnits)
+        ReadRepresentationCode(RC_IDENT, str);
 
-    if (format & TypeAttribute::TypeAttrValue)
-        ReadRepresentationCode(rep_code, str, src);
+    if (m_component_header.format & TypeAttribute::TypeAttrValue)
+        ReadRepresentationCode(rep_code, str);
     
     return true;
 }
 
 
-bool CDLISParser::ReadObject(byte format, const char **src)
+bool CDLISParser::ReadObject()
 {
     char str[128];
 
-    if (format & TypeObject::TypeObjectName)
-        ReadRepresentationCode(RC_IDENT, str, src);
+    if (m_component_header.format & TypeObject::TypeObjectName)
+        ReadRepresentationCode(RC_IDENT, str);
 
     return true;
 }
 
 
-bool CDLISParser::ReadSet(byte format, const char **src)
+bool CDLISParser::ReadSet()
 {
     char tmp[128];
 
-    if (format & TypeSet::TypeSetType)
-        ReadRepresentationCode(RC_IDENT, tmp, src);
+    if (m_component_header.format & TypeSet::TypeSetType)
+        ReadRepresentationCode(RC_IDENT, tmp);
 
-    if (format & TypeSet::TypeSetName)
-        ReadRepresentationCode(RC_IDENT, tmp, src);
+    if (m_component_header.format & TypeSet::TypeSetName)
+        ReadRepresentationCode(RC_IDENT, tmp);
 
     return true;
 }

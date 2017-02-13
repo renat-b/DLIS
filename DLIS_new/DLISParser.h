@@ -239,9 +239,6 @@ private:
     bool            SegmentIsObject(byte role);
     bool            SegmentIsAttr(byte role);
 
-    bool            AttributeRead();
-     
-
     bool            VisibleRecordNext();
 
     bool            StorageUnitLabelRead();
@@ -260,13 +257,9 @@ private:
     bool            HeaderSegmentGet(SegmentHeader *header);
     bool            HeaderComponentGet();
 
-    bool            ReadLogicalRecordHeader();
-    bool            ReadLogicalRecordBody();
-
-    bool            ReadRawData(void *dst, const char **src, size_t len);
-    bool            ReadString(char *dst, const char **src);
-    bool            ReadRepresentationCode(const RepresentaionCodes code, void *dst, const char **src);
-    bool            ReadCharacteristics(byte format, const char **src);
-    bool            ReadObject(byte format, const char **src);
-    bool            ReadSet(byte format, const char **src);
+    bool            ReadRawData(void *dst, size_t len);
+    bool            ReadRepresentationCode(RepresentaionCodes code, void *dst);
+    bool            ReadCharacteristics();
+    bool            ReadObject();
+    bool            ReadSet();
 };
