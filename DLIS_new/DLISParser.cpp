@@ -1,6 +1,7 @@
 #include "DLISParser.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "stddef.h"
 #include "assert.h"
 
 
@@ -80,7 +81,9 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_lenght[] =
 CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE)
 {
     memset(&m_storage_unit_label, 0, sizeof(m_storage_unit_label));
-    memset(&m_file_chunk, 0, sizeof(m_file_chunk));
+    memset(&m_file_chunk,     0, sizeof(m_file_chunk));
+    memset(&m_visible_record, 0, sizeof(m_visible_record));
+    memset(&m_segment_header, 0, sizeof(m_segment_header));
 }
 
 
@@ -101,7 +104,7 @@ bool CDLISParser::Parse(const char *file_name)
     if (!ChunkInitialize())
         return false;
         
-    if (!ReadStorageUnitLabel())
+    if (!StorageUnitLabelRead())
         return false;
     
     if (!ReadLogicalFiles())
@@ -250,7 +253,7 @@ UINT64 CDLISParser::FileSize()
 }
 
 
-void CDLISParser::Big2LittelEndian(void *data, int len)
+void CDLISParser::Big2LittelEndian(void *data, size_t len)
 {
     static byte tmp[8];
 
@@ -282,12 +285,9 @@ void CDLISParser::Big2LittelEndianByte(byte *bt)
 }
 
 
-void CDLISParser::RoleAndFormatFromByte(byte bt, byte *role, byte *format)
+void CDLISParser::RoleAndFormatFromByte(byte *role, byte *format)
 {
-    Big2LittelEndianByte(&bt);
     
-    *role   = bt & 0x7;
-    *format = bt & 0xF8;
 }
 
 
@@ -335,7 +335,7 @@ bool CDLISParser::ChunkNextBuffer(char **data, size_t len)
     m_file_chunk.pos           = 0;
     m_file_chunk.size_chunk    = m_file_chunk.remaind;
     
-    if (len < m_file_chunk.remaind)      
+    if (len <= m_file_chunk.remaind)      
     {
         *data = m_file_chunk.data;
 
@@ -391,36 +391,43 @@ bool CDLISParser::SegmentIsAttr(byte role)
 }
 
 
-bool CDLISParser::VisibleRecordNext(char **record, size_t *len)
+bool CDLISParser::VisibleRecordNext()
 {
-    *record = NULL;
-    *len    = 0;
 
-    char              *data;
-    LogicalFileHeader *header;
+    m_visible_record.current = NULL;
+    m_visible_record.end     = NULL;
+    m_visible_record.len     = 0;    
 
-    bool r = ChunkNextBuffer(&data, sizeof(LogicalFileHeader));
+    char                 *data;
+    VisibleRecordHeader  *header;
+
+    bool r = ChunkNextBuffer(&data, sizeof(VisibleRecordHeader));
 
     if (r) 
     {
-        header = (LogicalFileHeader *)data;
+        header = (VisibleRecordHeader *)data;
         Big2LittelEndian(&((*header).length), sizeof(header->length));
     }
     
     if (r)
     {
-        *len = header->length - sizeof(LogicalFileHeader);
-        r = ChunkNextBuffer(&data, *len);            
-    }
+        char *record;
 
-    if (r)
-        *record = data;
+        m_visible_record.len = header->length - sizeof(VisibleRecordHeader);
+        r = ChunkNextBuffer(&record, m_visible_record.len);            
+
+        if (r)
+        {
+            m_visible_record.current = record;
+            m_visible_record.end     = record + m_visible_record.len; 
+        }
+    }
 
     return r;
 }
 
 
-bool CDLISParser::ReadStorageUnitLabel()
+bool CDLISParser::StorageUnitLabelRead()
 {
     //!!! FileRead((char *)&m_storage_unit_label, sizeof(m_storage_unit_label));
     //return true;
@@ -441,7 +448,7 @@ bool CDLISParser::ReadLogicalFiles2()
 {
     size_t   size = 80;
 
-    LogicalFileHeader header = { 0 };
+    SegmentHeader header = { 0 };
 
     char *data = (char *)&header;
     DWORD len  = sizeof(header);
@@ -464,7 +471,6 @@ bool CDLISParser::ReadLogicalFiles2()
     {
        do 
        {
-            //r = ReadLogicalFile();
             char  *buf;
             
             buf = new(std::nothrow) char[header.length];
@@ -507,12 +513,9 @@ bool CDLISParser::ReadLogicalFiles2()
 
 bool CDLISParser::ReadLogicalFiles()
 {
-    size_t  len;
-    char   *record;
-
     static int count = 0;
 
-    bool  r = VisibleRecordNext(&record, &len); 
+    bool  r = VisibleRecordNext();
     if (r)
     {
         do
@@ -522,9 +525,10 @@ bool CDLISParser::ReadLogicalFiles()
 
             count ++;
 
-            r = ReadSegments(record, len); 
+            r = ReadLogicalFile();
+             
             if (r)
-                r = VisibleRecordNext(&record, &len);
+                r = VisibleRecordNext();
         }
         while (r);
     }
@@ -535,121 +539,95 @@ bool CDLISParser::ReadLogicalFiles()
 
 bool CDLISParser::ReadLogicalFile()
 {
-    while (true)
+    bool r = true;
+    
+    while (r)
     {
-        ReadLogicalRecord();
-    }    
+        r = ReadSegment();
+        if (r) 
+        {
+            // конец видимой записи 
+            if (m_visible_record.current >= m_visible_record.end)
+                break;
+        }
+    }
+
+    assert(m_visible_record.current == m_visible_record.end);
+    return r;
 }
 
 
-bool CDLISParser::ReadSegments(char *record, size_t len)
+bool CDLISParser::ReadSegment()
 {
-    SegmentHeader *header;
-    char          *logical_record;
 
-    logical_record = record;
-    while (logical_record < (record + len))
+    bool r = HeaderSegmentGet(&m_segment_header);
+
+    if (r) 
     {
-        header = (SegmentHeader *)logical_record;
-        Big2LittelEndian(&(*header).length, sizeof(header->length));
+        // первый сегмент в логическом файле 
+        if (m_segment_header.type == FHLR && (m_segment_header.attributes & Logical_Record_Structure))
+        {
+            int k = 0;
+        }
 
-        ReadSegment(logical_record + sizeof(SegmentHeader), header);
-
-        logical_record += header->length;        
+        // продолжение сегмента (второй и тд сегмент) в списке сегментов
+        if (m_segment_header.attributes & Successor)
+        {
+            int k = 0;
+        }
+    }
+   
+    if (r)
+    {
+        m_visible_record.current += m_segment_header.length;
     }
 
-    assert(logical_record == (record + len));
+    return r;
+}
+
+
+bool CDLISParser::HeaderSegmentGet(SegmentHeader *header)
+{
+    *header = *(SegmentHeader *)m_visible_record.current; 
+     
+    Big2LittelEndian(&((*header).length), sizeof(header->length));
+    Big2LittelEndianByte(&((*header).attributes));
+    
+    short  size_header = (short)(offsetof(SegmentHeader, length_data));
+
+    header->length_data = header->length - size_header;
+
+    if (header->attributes & Trailing_Length)
+        header->length_data -= sizeof(short);
+
+    if (header->attributes & Checksum)
+        header->length_data -= sizeof(short);
+    
+    if (header->attributes & Padding)    
+    {
+        byte    *pad_len;
+        char    *data;  
+
+        data = m_visible_record.current + size_header;
+        pad_len = (byte *)(data) + header->length_data - sizeof(byte);
+
+        header->length_data -= *pad_len;
+    }
 
     return true;
-}
 
 
-bool CDLISParser::ReadSegment(char *logical_record, SegmentHeader *header)
-{
-    (void)header;
-    (void)logical_record;
 
-    char *segment = logical_record;
-    byte  role;
-    byte  format; 
 
-    int  k;   //!!!
-
-    while (segment < (logical_record + header->length))
-    {
-        RoleAndFormatFromByte((byte)*segment, &role, &format);
-
-        segment ++;
-
-        if (SegmentIsSet(role))
-        {
-           k = 0;
-        }
-        else if (SegmentIsObject(role))
-        {
-            k = 0; 
-        }
-        else if (SegmentIsAttr(role))
-        {
-            k = 0;
-        }
-
-    }
-      
-    return true;
-}
-
-bool CDLISParser::ReadLogicalRecord()
-{
-    SegmentHeader   header = { 0 };
-
-    char    *data = (char *)&header;
-    DWORD    len  = sizeof(header);
-
-    bool     r;
-
-    r = FileRead(data, len);
-    if (!r)
-        return false;
+    byte desc = *(byte *)m_visible_record.current;
     
-    DWORD trailing_len = 0;
-    DWORD body_len     = header.length - sizeof(header); 
-
-    data = new(std::nothrow) char[body_len];
+    Big2LittelEndianByte(&desc);
+     
+    //m_component_header.role   = desc & 0x7;
+    //m_component_header.format = desc & 0xF8;
     
-    if (!data)
-        return false;
-    
-    r = FileRead(data, header.length);
-    if (!r)
-    {
-        delete data;
-        return false;
-    }
-        
-    if (header.attributes & LogicalRecordSegmentAttributes::Trailing_Length)
-    {
-        trailing_len += 2;
-        body_len     -= 2;
-    }
+    m_visible_record.current += sizeof(byte);
 
-    if (header.attributes & LogicalRecordSegmentAttributes::Checksum)
-    {
-        trailing_len += 2;
-        body_len     -= 2;
-    }
-
-    if (header.attributes & LogicalRecordSegmentAttributes::Padding)
-    {
-        byte   pad  = 0;
-        UINT64 seek = FileSeekGet();
-        
-        
-    }
-
-    delete data;
-    data = NULL;
-    
     return true;
 }
 

@@ -14,20 +14,33 @@ struct StorageUnitLabel
 };
 #pragma pack(pop)
 
+
 #pragma pack(push, 1)
-struct SegmentHeader
+struct VisibleRecordHeader
 {
-    short           length;                 // segment length
-    unsigned char   attributes;             // segment attributes byte
-    unsigned char   type;                   // logical record type byte
+    short   length;
+    byte    frm[2];
 };
 #pragma pack(pop)
 
+
 #pragma pack(push, 1)
-struct LogicalFileHeader
+struct SegmentHeader
 {
-    short       length;
-    byte        fmt[2];
+    short              length;                 // segment length
+    unsigned char      attributes;             // segment attributes byte
+    unsigned char      type;                   // logical record type byte
+
+    short              length_data;            // размер данных за минусом метаданных
+};
+#pragma pack(pop)
+
+
+#pragma pack(push, 1)
+struct ComponentHeader
+{
+    char  role;
+    char  format;
 };
 #pragma pack(pop)
 
@@ -35,11 +48,16 @@ struct LogicalFileHeader
 // флаги Role (верхние три бита)
 enum TypeRole
 {
+    // атрибут
     Absent_Attribute    = 0x0,     //  000     ABSATR     Absent Attribute
     Attribute           = 0x1,     //  001     ATTRIB     Attribute
     Invariant_Attribute = 0x2,     //  010     INVATR     Invariant Attribute
+    // объект
     Object              = 0x3,     //  011     OBJECT     Object
+
     //100 	reserved -
+
+    // set
     Redundant_Set       = 0x5,     //  101 	   RDSET 	  Redundant Set
     Replacement_Set     = 0x6,     //  110 	   RSET 	  Replacement Set
     Set                 = 0x7,     //  111 	   SET 	      Set
@@ -113,6 +131,24 @@ enum RepresentaionCodes
 };
 
 
+// Типы Explicitly Formatted Logical Record
+enum EFLRType
+{
+    FHLR    = 0,        // File Header
+    OLR     = 1,        // Origin
+    AXIS    = 2,        // Coordinate Axis
+    CHANNL  = 3,        // Channel-related information
+    FRAME   = 4,        // Frame Data
+    STATIC  = 5,        // Static Data
+    SCRIPT  = 6,        // Textual Data
+    UPDATE  = 7, 
+    UDI     = 8,
+    LNAME   = 9,
+    SPEC    = 10,
+    DICT    = 11,
+    LAST_Public_EFLR_Code = DICT,
+};
+
 struct MemoryBuffer
 {
     char            *data;
@@ -133,26 +169,13 @@ private:
         Mb         = Kb  * Kb,
         FILE_CHUNK = 16 * Mb,
     };
+
     struct RepresentaionCodesLenght
     {
         RepresentaionCodes  code;
         size_t              lenght;
     };
 
-public:
-    CDLISParser();
-    ~CDLISParser();
-
-    bool            Parse(const char *file_name);
-
-    bool            Initialize();
-    void            Shutdown();
-
-private:
-   static RepresentaionCodesLenght s_rep_codes_lenght[];
-    
-
-private:
     typedef unsigned char byte;
     //
     HANDLE              m_file;
@@ -165,8 +188,31 @@ private:
         size_t      size_chunk;
         UINT64      file_remaind;
     };
+    
+    FileChunk        m_file_chunk;
 
-    FileChunk      m_file_chunk;
+    struct DataPos
+    {
+        char      *current;
+        char      *end; 
+        size_t     len;
+    };
+
+    DataPos            m_visible_record;
+
+    SegmentHeader      m_segment_header;
+
+private:
+   static RepresentaionCodesLenght s_rep_codes_lenght[];
+ 
+public:
+    CDLISParser();
+    ~CDLISParser();
+
+    bool            Parse(const char *file_name);
+
+    bool            Initialize();
+    void            Shutdown();
 
 private:
     //  чтение файла
@@ -178,10 +224,10 @@ private:
     void            FileSeekSet(UINT64 offset);
     UINT64          FileSize();
 
-    void            Big2LittelEndian(void *dst, int len);
+    void            Big2LittelEndian(void *dst, size_t len);
     void            Big2LittelEndianByte(byte *byte);
-    void            RoleAndFormatFromByte(byte bt, byte *role, byte *format);
-    //  
+    void            RoleAndFormatFromByte(byte *role, byte *format);
+     
     bool            ChunkNextBuffer(char **data, size_t len);
     bool            ChunkInitialize();
     bool            ChunkEOF();
@@ -194,18 +240,17 @@ private:
     bool            AttributeRead();
      
 
-    bool            VisibleRecordNext(char **record, size_t *len);
+    bool            VisibleRecordNext();
 
-    bool            ReadStorageUnitLabel();
+    bool            StorageUnitLabelRead();
 
     bool            ReadLogicalFiles();
     bool            ReadLogicalFiles2();
     bool            ReadLogicalFile();
+    
+    bool            ReadSegment();
 
-    bool            ReadSegments(char *record, size_t len);
-    bool            ReadSegment(char *logical_record, SegmentHeader *header);
-
-    bool            ReadLogicalRecord();
+    bool            HeaderSegmentGet(SegmentHeader *header);
     bool            ReadLogicalRecordHeader();
     bool            ReadLogicalRecordBody();
 

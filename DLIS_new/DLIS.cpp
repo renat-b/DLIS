@@ -4,10 +4,11 @@
 
 int main()
 {
+
     CDLISParser    parser;
 
-    parser.Parse("D:\\src\\DLIS task\\Dlis examples\\Sample2.dlis");
-    //parser.Parse("D:\\src\\DLIS task\\new.dlis");
+    parser.Parse("D:\\src\\DLIS\\Dlis_examples\\Sample2.dlis");
     parser.Shutdown();
+
     return 0;
 }
