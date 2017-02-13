@@ -199,8 +199,10 @@ private:
     };
 
     DataPos            m_visible_record;
+    DataPos            m_segment;
 
     SegmentHeader      m_segment_header;
+    ComponentHeader    m_component_header;
 
 private:
    static RepresentaionCodesLenght s_rep_codes_lenght[];
@@ -249,8 +251,15 @@ private:
     bool            ReadLogicalFile();
     
     bool            ReadSegment();
+    bool            ReadComponent();
+
+    bool            ReadComponentSet();
+    bool            ReadComponentAttr();
+    bool            ReadComponentObject();
 
     bool            HeaderSegmentGet(SegmentHeader *header);
+    bool            HeaderComponentGet();
+
     bool            ReadLogicalRecordHeader();
     bool            ReadLogicalRecordBody();
 

@@ -81,9 +81,11 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_lenght[] =
 CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE)
 {
     memset(&m_storage_unit_label, 0, sizeof(m_storage_unit_label));
-    memset(&m_file_chunk,     0, sizeof(m_file_chunk));
-    memset(&m_visible_record, 0, sizeof(m_visible_record));
-    memset(&m_segment_header, 0, sizeof(m_segment_header));
+    memset(&m_file_chunk,         0, sizeof(m_file_chunk));
+    memset(&m_visible_record,     0, sizeof(m_visible_record));
+    memset(&m_segment_header,     0, sizeof(m_segment_header));
+    memset(&m_component_header,   0, sizeof(m_component_header));
+    memset(&m_segment,            0, sizeof(m_segment));
 }
 
 
@@ -564,21 +566,39 @@ bool CDLISParser::ReadSegment()
 
     if (r) 
     {
-        // первый сегмент в логическом файле 
-        if (m_segment_header.type == FHLR && (m_segment_header.attributes & Logical_Record_Structure))
+        if (m_segment_header.attributes & Logical_Record_Structure)
         {
-            int k = 0;
-        }
+            // первый сегмент в логическом файле 
+            if (m_segment_header.type == FHLR)
+            {
+                int k = 0;
+            }
 
-        // продолжение сегмента (второй и тд сегмент) в списке сегментов
-        if (m_segment_header.attributes & Successor)
-        {
-            int k = 0;
+            // продолжение сегмента (второй и тд сегмент) в списке сегментов
+            if (m_segment_header.attributes & Successor)
+            {
+                int k = 0;
+            }
+            
+
+            // последовательно вычитываем компоненты
+            r = ReadComponent();
+            while (r)
+            {
+                // конец сегмента, выходим для получения новой порции данных
+                if (m_segment.current >= m_segment.end)
+                    break;
+
+                r = ReadComponent();
+            }
+
+
         }
     }
    
     if (r)
     {
+        // смещаемся на новый сегмент
         m_visible_record.current += m_segment_header.length;
     }
 
@@ -586,15 +606,61 @@ bool CDLISParser::ReadSegment()
 }
 
 
+bool CDLISParser::ReadComponent()
+{
+    bool r;
+    
+    r = HeaderComponentGet();
+    if (r)
+    {
+        if (m_component_header.role == Absent_Attribute || m_component_header.role == Attribute || m_component_header.role == Invariant_Attribute)             
+        {
+            r = ReadComponentAttr();
+        }
+        else if (m_component_header.role == Object)
+        {
+            r = ReadComponentObject(); 
+        }
+        else if (m_component_header.role == Redundant_Set || m_component_header.role == Replacement_Set || m_component_header.role == Set)
+        {
+            r = ReadComponentSet(); 
+        }
+    }
+
+    return r;
+}
+
+
+bool CDLISParser::ReadComponentSet()
+{
+    return true;
+}
+
+
+bool CDLISParser::ReadComponentAttr()
+{
+    return true;
+}
+
+
+bool CDLISParser::ReadComponentObject()
+{
+    return true;
+}
+
+
 bool CDLISParser::HeaderSegmentGet(SegmentHeader *header)
 {
     *header = *(SegmentHeader *)m_visible_record.current; 
-     
+
+    //  получим полный размер сегмента и его атрибуты
     Big2LittelEndian(&((*header).length), sizeof(header->length));
     Big2LittelEndianByte(&((*header).attributes));
     
-    short  size_header = (short)(offsetof(SegmentHeader, length_data));
 
+
+    short  size_header = (short)(offsetof(SegmentHeader, length_data));
+    // рассчитаем актуальный размер сегмента (содержащий данные  без метаданных)
     header->length_data = header->length - size_header;
 
     if (header->attributes & Trailing_Length)
@@ -609,24 +675,38 @@ bool CDLISParser::HeaderSegmentGet(SegmentHeader *header)
         char    *data;  
 
         data = m_visible_record.current + size_header;
+        
         pad_len = (byte *)(data) + header->length_data - sizeof(byte);
-
+        assert((data + (*pad_len)) <= m_visible_record.end);
         header->length_data -= *pad_len;
     }
+    
+
+    // выставим значения сегмента, его актуальный размер, начало и конец
+    m_segment.current = m_visible_record.current + size_header;
+    m_segment.end     = m_segment.current + m_segment_header.length_data;
+    m_segment.len     = m_segment_header.length_data;
 
     return true;
+}
 
 
-
-
-    byte desc = *(byte *)m_visible_record.current;
+bool CDLISParser::HeaderComponentGet()
+{
+    byte desc = *(byte *)m_segment.current;
     
-    Big2LittelEndianByte(&desc);
-     
-    //m_component_header.role   = desc & 0x7;
-    //m_component_header.format = desc & 0xF8;
+    Big2LittelEndianByte(&desc); 
+
+    // получим роль и формат Component-а
+    // для получения role сбросим вехрние 5 бит
+    // для получние format сбросим нижние 3 бита
+    m_component_header.role   = desc & 0x7;
+    m_component_header.format = desc & 0xF8;
     
-    m_visible_record.current += sizeof(byte);
+    m_segment.current += sizeof(byte);
+    m_segment.len     -= sizeof(byte);
+
+    assert(m_segment.current <= m_segment.end);
 
     return true;
 }
