@@ -258,7 +258,9 @@ private:
     bool            HeaderComponentGet();
 
     bool            ReadRawData(void *dst, size_t len);
-    bool            ReadRepresentationCode(RepresentaionCodes code, void *dst);
+
+    bool            ReadRepresentationCode(RepresentaionCodes code, void **dst, size_t *len);
+
     bool            ReadCharacteristics();
     bool            ReadObject();
     bool            ReadSet();
