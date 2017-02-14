@@ -128,6 +128,8 @@ enum RepresentaionCodes
     RC_OBJREF = 24,    // V 	Object reference
     RC_ATTREF = 25,    // V 	Attribute reference
     RC_STATUS = 26,    // 1 	Boolean status
+    RC_UNITS  = 27,    // 
+    RC_LAST   = RC_UNITS,
 };
 
 
@@ -173,7 +175,7 @@ private:
     struct RepresentaionCodesLenght
     {
         RepresentaionCodes  code;
-        size_t              lenght;
+        int                 lenght;
     };
 
     typedef unsigned char byte;
@@ -205,7 +207,7 @@ private:
     ComponentHeader    m_component_header;
 
 private:
-   static RepresentaionCodesLenght s_rep_codes_lenght[];
+   static RepresentaionCodesLenght s_rep_codes_lenght[RC_LAST];
  
 public:
     CDLISParser();

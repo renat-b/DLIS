@@ -7,7 +7,7 @@ int main()
 
     CDLISParser    parser;
 
-    parser.Parse("D:\\src\\DLIS\\Dlis_examples\\Sample2.dlis");
+    parser.Parse("../Dlis_examples/Sample2.dlis");
     parser.Shutdown();
 
     return 0;

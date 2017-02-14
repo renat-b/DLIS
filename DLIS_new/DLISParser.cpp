@@ -53,28 +53,35 @@ void MemoryBuffer::Free()
 }
 
 
-CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_lenght[] = 
+CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_lenght[RC_LAST] = 
 {
-    { RC_FSHORT, 2  },
-    { RC_FSINGL, 4  },
-    { RC_FSING1, 8  },
-    { RC_FSING2, 12 },
-    { RC_ISINGL, 4  },
-    { RC_VSINGL, 4  },
-    { RC_FDOUBL, 8  },
-    { RC_FDOUB1, 16 },
-    { RC_FDOUB2, 24 },
-    { RC_CSINGL, 8  },
-    { RC_CDOUBL, 16 },
-    { RC_SSHORT, 1  },
-    { RC_SNORM,  2  },
-    { RC_SLONG,  4  },
-    { RC_USHORT, 1  },
-    { RC_UNORM,  2  },
-    { RC_ULONG,  4  },
-    { RC_UVARI,  1, },
-    { RC_DTIME,  8  },
-    { RC_STATUS, 1  },
+    { RC_FSHORT,  2  },
+    { RC_FSINGL,  4  },
+    { RC_FSING1,  8  },
+    { RC_FSING2,  12 },
+    { RC_ISINGL,  4  },
+    { RC_VSINGL,  4  },
+    { RC_FDOUBL,  8  },
+    { RC_FDOUB1,  16 },
+    { RC_FDOUB2,  24 },
+    { RC_CSINGL,  8  },
+    { RC_CDOUBL,  16 },
+    { RC_SSHORT,  1  },
+    { RC_SNORM,   2  },
+    { RC_SLONG,   4  },
+    { RC_USHORT,  1  },
+    { RC_UNORM,   2  },
+    { RC_ULONG,   4  },
+    { RC_UVARI,  -1  },
+    { RC_IDENT,  -1  },
+    { RC_ASCII,  -1  },
+    { RC_DTIME,   8  },
+    { RC_ORIGIN, -1  },
+    { RC_OBNAME, -1  },
+    { RC_OBJREF, -1  },
+    { RC_ATTREF, -1  },
+    { RC_STATUS, -1  },
+    { RC_UNITS,  -1  }
 };
 
 
@@ -680,8 +687,6 @@ bool CDLISParser::HeaderComponentGet()
 {
     byte desc = *(byte *)m_segment.current;
     
-    //Big2LittelEndianByte(&desc); 
-
     // получим роль и формат Component-а
     // для получения role сбросим вехрние 5 бит
     // для получние format сбросим нижние 3 бита
@@ -735,22 +740,18 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
         case RC_ULONG: 
         case RC_DTIME: 
         case RC_STATUS:
-            {
-            	for (int i = 0; i < _countof(s_rep_codes_lenght); i++)
-            	    if (s_rep_codes_lenght[i].code == code)
-            	    {
-            	        ReadRawData(buf, s_rep_codes_lenght[i].lenght);
+            { 
+            	ReadRawData(buf, s_rep_codes_lenght[code - 1].lenght);
 
-                        *dst = buf;
-                        *len = s_rep_codes_lenght[i].lenght;
-            		    break;
-            	    }
+                *dst = buf;
+                *len = s_rep_codes_lenght[code - 1].lenght;
 
                 break;
             }
 
         case RC_IDENT:
         case RC_ASCII:
+        case RC_UNITS:
             {
                 size_t    count;
                 void     *ptr;
@@ -794,6 +795,30 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
                 Big2LittelEndian(buf, var_len);
 
             }
+            break;
+
+        case RC_OBNAME:
+            {
+                ReadRepresentationCode(RC_ORIGIN, dst, len);
+                ReadRepresentationCode(RC_USHORT, dst, len);
+                ReadRepresentationCode(RC_IDENT,  dst, len);
+            }
+            break;
+
+        case RC_OBJREF:
+            {
+                ReadRepresentationCode(RC_IDENT,  dst, len);
+                ReadRepresentationCode(RC_OBNAME, dst, len);
+            }
+            break;
+
+        case RC_ATTREF:
+            {
+                ReadRepresentationCode(RC_IDENT,  dst, len);
+                ReadRepresentationCode(RC_OBNAME, dst, len);
+                ReadRepresentationCode(RC_IDENT,  dst, len);
+            }
+            break;
 
         default:
             assert(false);
@@ -840,7 +865,7 @@ bool CDLISParser::ReadObject()
     size_t  len;
 
     if (m_component_header.format & TypeObject::TypeObjectName)
-        ReadRepresentationCode(RC_IDENT, (void**)&val, &len);
+        ReadRepresentationCode(RC_OBNAME, (void**)&val, &len);
 
     return true;
 }
