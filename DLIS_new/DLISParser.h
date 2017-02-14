@@ -39,8 +39,8 @@ struct SegmentHeader
 #pragma pack(push, 1)
 struct ComponentHeader
 {
-    char  role;
-    char  format;
+    unsigned char  role;
+    unsigned char  format;
 };
 #pragma pack(pop)
 
@@ -250,10 +250,6 @@ private:
     bool            ReadSegment();
     bool            ReadComponent();
 
-    bool            ReadComponentSet();
-    bool            ReadComponentAttr();
-    bool            ReadComponentObject();
-
     bool            HeaderSegmentGet(SegmentHeader *header);
     bool            HeaderComponentGet();
 
@@ -261,7 +257,7 @@ private:
 
     bool            ReadRepresentationCode(RepresentaionCodes code, void **dst, size_t *len);
 
-    bool            ReadCharacteristics();
-    bool            ReadObject();
     bool            ReadSet();
+    bool            ReadObject();
+    bool            ReadAttribute();
 };

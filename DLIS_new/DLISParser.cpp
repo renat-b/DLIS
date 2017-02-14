@@ -615,46 +615,19 @@ bool CDLISParser::ReadComponent()
     {
         if (m_component_header.role == Absent_Attribute || m_component_header.role == Attribute || m_component_header.role == Invariant_Attribute)             
         {
-            r = ReadComponentAttr();
+            r = ReadAttribute();
         }
         else if (m_component_header.role == Object)
         {
-            r = ReadComponentObject(); 
+            r = ReadObject();
         }
         else if (m_component_header.role == Redundant_Set || m_component_header.role == Replacement_Set || m_component_header.role == Set)
         {
-            r = ReadComponentSet(); 
+            r = ReadSet();
         }
     }
 
     return r;
-}
-
-
-bool CDLISParser::ReadComponentSet()
-{
-    bool   r = m_component_header.role == Redundant_Set;
-
-    assert(r);
-
-    if (r)
-    {
-
-    } 
-
-    return r;
-}
-
-
-bool CDLISParser::ReadComponentAttr()
-{
-    return true;
-}
-
-
-bool CDLISParser::ReadComponentObject()
-{
-    return true;
 }
 
 
@@ -707,14 +680,16 @@ bool CDLISParser::HeaderComponentGet()
 {
     byte desc = *(byte *)m_segment.current;
     
-    Big2LittelEndianByte(&desc); 
+    //Big2LittelEndianByte(&desc); 
 
     // получим роль и формат Component-а
     // для получения role сбросим вехрние 5 бит
     // для получние format сбросим нижние 3 бита
-    m_component_header.role   = desc & 0x7;
-    m_component_header.format = desc & 0xF8;
-    
+
+    m_component_header.role   = (desc & 0xE0) >> 5;
+    m_component_header.format = (desc & 0x1F);
+    Big2LittelEndianByte(&m_component_header.format);
+
     m_segment.current += sizeof(byte);
     m_segment.len     -= sizeof(byte);
 
@@ -766,39 +741,33 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
             	    {
             	        ReadRawData(buf, s_rep_codes_lenght[i].lenght);
 
-                        m_segment.current += s_rep_codes_lenght[i].lenght;
-                        m_segment.len     -= s_rep_codes_lenght[i].lenght;
-
                         *dst = buf;
                         *len = s_rep_codes_lenght[i].lenght;
             		    break;
             	    }
 
-                assert(false);
                 break;
             }
 
         case RC_IDENT:
         case RC_ASCII:
-        //case RC_OBNAME:
             {
                 size_t    count;
                 void     *ptr;
                 
                 UINT      str_len = 0;
                 
-                if (RC_ASCII)
+                if (code == RC_ASCII)
                     ReadRepresentationCode(RC_UVARI,  &ptr, &count);
                 else
                     ReadRepresentationCode(RC_USHORT, &ptr, &count);
 
                 assert(count <= sizeof(str_len));
-
-                memcpy((((char *)&str_len)) + sizeof(str_len) - count - 1, ptr, count);
+                memcpy(&str_len, ptr, count);
                 ReadRawData(buf, str_len);
                 
-                *dst   = buf;
-                *len   = str_len;
+                *dst = buf;
+                *len = str_len;
             }
             break;
 
@@ -835,26 +804,31 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
 }
 
 
-bool CDLISParser::ReadCharacteristics()
+bool CDLISParser::ReadAttribute()
 {
-    //size_t              val;
-    //char                str[128];
-    //RepresentaionCodes  rep_code;
-    
-    //if (m_component_header.format & TypeAttribute::TypeAttrLable)
-    //    ReadRepresentationCode(RC_IDENT, &val);
+    char        *val;
+    size_t       len;
+    RepresentaionCodes  rep_code = RC_IDENT;
 
-    //if (m_component_header.format & TypeAttribute::TypeAttrCount)
-    //    ReadRepresentationCode(RC_UVARI, &val);
+    if (m_component_header.format & TypeAttribute::TypeAttrLable)
+        ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
 
-    //if (m_component_header.format & TypeAttribute::TypeAttrRepresentationCode)
-    //    ReadRepresentationCode(RC_USHORT, &rep_code);
+    if (m_component_header.format & TypeAttribute::TypeAttrCount)
+        ReadRepresentationCode(RC_UVARI, (void **)&val, &len);
 
-    //if (m_component_header.format & TypeAttribute::TypeAttrUnits)
-    //    ReadRepresentationCode(RC_IDENT, str);
+    if (m_component_header.format & TypeAttribute::TypeAttrRepresentationCode)
+    {
+        ReadRepresentationCode(RC_USHORT, (void **)&val, &len);
 
-    //if (m_component_header.format & TypeAttribute::TypeAttrValue)
-    //    ReadRepresentationCode(rep_code, str);
+        memset(&rep_code, 0 , sizeof(rep_code));
+        memcpy(&rep_code, val, len);
+    }
+
+    if (m_component_header.format & TypeAttribute::TypeAttrUnits)
+        ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
+
+    if (m_component_header.format & TypeAttribute::TypeAttrValue)
+        ReadRepresentationCode(rep_code, (void **)&val, &len);
     
     return true;
 }
@@ -862,10 +836,11 @@ bool CDLISParser::ReadCharacteristics()
 
 bool CDLISParser::ReadObject()
 {
-    //char str[128];
+    char   *val;
+    size_t  len;
 
-    //if (m_component_header.format & TypeObject::TypeObjectName)
-    //    ReadRepresentationCode(RC_IDENT, str);
+    if (m_component_header.format & TypeObject::TypeObjectName)
+        ReadRepresentationCode(RC_IDENT, (void**)&val, &len);
 
     return true;
 }
@@ -873,13 +848,14 @@ bool CDLISParser::ReadObject()
 
 bool CDLISParser::ReadSet()
 {
-    //char tmp[128];
+    char  *val;
+    size_t len;
 
-    //if (m_component_header.format & TypeSet::TypeSetType)
-    //    ReadRepresentationCode(RC_IDENT, tmp);
+    if (m_component_header.format & TypeSet::TypeSetType)
+        ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
 
-    //if (m_component_header.format & TypeSet::TypeSetName)
-    //    ReadRepresentationCode(RC_IDENT, tmp);
+    if (m_component_header.format & TypeSet::TypeSetName)
+        ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
 
     return true;
 }
