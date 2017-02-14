@@ -792,8 +792,8 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
                 if (var_len > 1)
                     ReadRawData(&buf[1], var_len - 1);
 
-                Big2LittelEndian(buf, var_len);
-
+                *len = var_len;
+                *dst = buf;
             }
             break;
 
