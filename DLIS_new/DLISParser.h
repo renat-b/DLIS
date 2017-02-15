@@ -5,7 +5,7 @@
 
 #include    "FileBin.h"
 
-extern CFileBin g_global_log;
+extern CFileBin *g_global_log;
 
 #pragma pack(push, 1)
 struct StorageUnitLabel

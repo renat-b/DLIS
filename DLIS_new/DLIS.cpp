@@ -4,14 +4,17 @@
 
 int main()
 {
-    if (g_global_log.OpenRead("../Dlis_examples/out.dat"))
+    g_global_log = new CFileBin;
+    if (g_global_log->OpenRead("../Dlis_examples/out.dat"))
     {
         CDLISParser  parser;
 
         parser.Parse("../Dlis_examples/Sample2.dlis");
         parser.Shutdown();
 
-        g_global_log.Close();
+        g_global_log->Close();
     }
+
+    delete g_global_log;
     return 0;
 }

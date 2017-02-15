@@ -4,7 +4,7 @@
 #include "stddef.h"
 #include "assert.h"
 
-CFileBin g_global_log;
+CFileBin *g_global_log = NULL;
 
 bool MemoryBuffer::Resize(size_t new_max_size)
 {
@@ -692,10 +692,10 @@ bool CDLISParser::HeaderComponentGet()
     // для получения role сбросим вехрние 5 бит
     // для получние format сбросим нижние 3 бита
     
-    int test_component_header;
-    int component_header = desc;
+    int test_component_header = 0;
+    int component_header      = desc;
 
-    g_global_log.ReadInt32(&test_component_header);
+    g_global_log->ReadInt32(&test_component_header);
     
     assert(test_component_header == component_header);   
 

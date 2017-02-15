@@ -44,7 +44,7 @@
 
 
 
-CFileBin   g_file_log;
+CFileBin   g_global_log;
 
 
 #ifndef NDEBUG
@@ -3087,7 +3087,7 @@ public:
         
         int data = (int)((role << 5) | m_d.fmt.to_ulong());  
 
-        g_file_log.WriteInt32(data);
+        g_global_log.WriteInt32(data);
 
         if (roleGroupOf(m_d.role) != roleGroup()) 
             throw RI(RI::ProgErr, 7);

@@ -39,7 +39,7 @@
 
 
 
-extern CFileBin g_file_log;
+extern CFileBin g_global_log;
 
 
 namespace Dlis {
