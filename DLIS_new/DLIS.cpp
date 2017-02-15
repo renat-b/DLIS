@@ -4,10 +4,9 @@
 
 int main()
 {
-    CDLISParser    parser;
-    
     if (g_global_log.OpenRead("../Dlis_examples/out.dat"))
     {
+        CDLISParser  parser;
 
         parser.Parse("../Dlis_examples/Sample2.dlis");
         parser.Shutdown();
