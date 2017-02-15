@@ -3024,23 +3024,44 @@ public:
 
 			out.write(m_db);
 		}
-	// Data -------------------------------------------------------------------
-		Role role;
+	    // Data -------------------------------------------------------------------
+		Role       role;
 		FormatBits fmt;
-	}; // class Descriptor ----------------------------------------------------
-	static RoleGroup roleGroupOf(Role r) {
-		switch (r) {
-		case rAbsentAttr: case rAttr: case rInvarAttr:	return rgAttr;
-		case rObject:									return rgObject;
-		case rReserved:									return rgReserved;
-		case rRdSet: case rRepSet: case rSet:			return rgSet;
-			default: assert(false);
+	}; 
+    // class Descriptor ----------------------------------------------------
+	static RoleGroup roleGroupOf(Role r) 
+    {
+
+		switch (r) 
+        {
+		    case rAbsentAttr: 
+            case rAttr: 
+            case rInvarAttr:	
+                return rgAttr;
+
+		    case rObject:
+			    return rgObject;
+
+		    case rReserved:
+			    return rgReserved;
+
+		    case rRdSet: 
+            case rRepSet: 
+            case rSet:
+			    return rgSet;
+
+			default: 
+                assert(false);
 		}
+
 	}
-		virtual RoleGroup roleGroup() = 0;
-	virtual void read(Input &input_file) 
+
+	virtual RoleGroup roleGroup() = 0;
+
+	virtual void  read(Input &input_file) 
     {
 		reset();
+        
 		m_d.read(input_file);
 
         if (roleGroupOf(m_d.role) != roleGroup()) 
@@ -3054,8 +3075,10 @@ public:
 		m_d.write(out);
 		writeCharacteristics(out);
 	}
-	Role role() const { return m_d.role; }
-	FormatBits format() const { return m_d.fmt; }
+
+	Role       role()   const { return m_d.role; }
+	FormatBits format() const { return m_d.fmt;  }
+
 protected:
 	virtual void reset() = 0;
 // - NB: В C++ виртуальные функции при вызове из конструктора не являются
@@ -3410,32 +3433,44 @@ public:
 // - NB: Функции setCount и setRepresentationCode предназначены для атрибутов
 //		 Set Template, для объектов следует пользоваться функцией setValue
 	template <class T>
-	RI setValue(const T &value,
-				Representation::Code code = Representation::Auto) {
-		return setValue(&value, 1, code);
+	RI setValue(const T &value, Representation::Code code = Representation::Auto) 
+    {
+	    return setValue(&value, 1, code);
 	}
+
 	// - NB: При задании значения value в виде литеральной строчной
 	//		 константы, видимо, будет ошибка компиляции
 	//		 (в шаблоне функции ValueInterface::set эта проблема решена )
 	template <class T>
-	RI setValue(const vector<T> &value,
-				Representation::Code code = Representation::Auto) {
+	RI setValue(const vector<T> &value, Representation::Code code = Representation::Auto) 
+    {
 		return setValue(&value[0], value.size(), code);
 	}
+
 	template <class T>
 	RI setValue(const T *p, size_t count, Representation::Code code) {
 		Representation::Code bakCode = m_c.reprCode();
-		if (code != Representation::Auto) setRepresentationCode(code);
+		if (code != Representation::Auto) 
+            setRepresentationCode(code);
+
 		RI ri = m_c.setValue(p, count);
+
 		if (ri.critical())
 			setRepresentationCode(bakCode);
-		else {
+		else 
+        {
 			setCount(count);
 			m_rparent->notifyChanged(this);
 		}
+
 		return ri;
 	}
-	void write(Output &out) const { m_c.write(out); }
+
+	void write(Output &out) const 
+    { 
+        m_c.write(out); 
+    }
+
 private:
 	friend class Attribute;
 	Impl(Attribute *pIntf, AttributeParent *parent,
@@ -3458,18 +3493,20 @@ private:
 	// - Признак ошибки в атрибуте (только у атрибутов объектов в режиме чтения)
 }; // class Attribute::Impl ===================================================
 
-void Attribute::Impl::Component::reset() {
-//	m_d.role = rAttr;
-//	m_label.clear();
-//	m_count = 1;
-//	m_reprCode = Representation::IDENT;
-//	m_units.clear();
-//	m_value.clear();
-	m_label =	 tLabel().defVal;
-	m_count =	 tCount().defVal;
+void Attribute::Impl::Component::reset() 
+{
+    //	m_d.role = rAttr;
+    //	m_label.clear();
+    //	m_count = 1;
+    //	m_reprCode = Representation::IDENT;
+    //	m_units.clear();
+    //	m_value.clear();
+
+	m_label    = tLabel().defVal;
+	m_count    = tCount().defVal;
 	m_reprCode = tReprCode().defVal;
-	m_units =	 tUnits().defVal;
-	m_value =	 tValue().defVal;
+	m_units    = tUnits().defVal;
+	m_value    = tValue().defVal;
 }
 
 void Attribute::Impl::Component::readCharacteristics(Input &input_file) 
@@ -3503,6 +3540,7 @@ void Attribute::Impl::Component::readCharacteristics(Input &input_file)
         m_value.read(input_file, reprCode(), count());
 	else 
         m_value.setNull(reprCode(), count());
+        
 }
 
 void Attribute::Impl::Component::writeCharacteristics(Output &out) const {
