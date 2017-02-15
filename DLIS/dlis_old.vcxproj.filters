@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Common">
+      <UniqueIdentifier>{dd4bd51d-ffd2-47da-b73b-ac5676384d13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Common">
+      <UniqueIdentifier>{934c76d4-ece9-4fb4-abed-211e0c5ea1c6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dlis_old.cpp">
@@ -21,6 +27,9 @@
     <ClCompile Include="dlis.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\DLIS_new\FileBin.cpp">
+      <Filter>Source Files\Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dlis.h">
@@ -28,6 +37,9 @@
     </ClInclude>
     <ClInclude Include="dlis_iter.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\DLIS_new\FileBin.h">
+      <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

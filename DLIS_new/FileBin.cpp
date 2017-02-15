@@ -1,7 +1,7 @@
 #include "FileBin.h"
+#include "windows.h"
 
-
-CFileBin::CFileBin() : m_file(INVALID_HANDLE_VALUE)
+CFileBin::CFileBin() : m_file(INVALID_HANDLE_VALUE), m_count(0)
 {
 }
 
@@ -45,6 +45,9 @@ bool CFileBin::Close()
     if (m_file != INVALID_HANDLE_VALUE)
         CloseHandle(m_file);
 
+    m_file  = INVALID_HANDLE_VALUE;
+    m_count = 0;
+
     return true;
 }
 
@@ -63,12 +66,14 @@ bool CFileBin::Read(void *data, DWORD *len)
         if (GetLastError() == ERROR_SUCCESS)
         {
             *len = readed;
-            return true;
         }
         else
+        {
             return false;
+        }
     }
-
+    
+    m_count ++;
     return true;
 }
 
@@ -85,7 +90,8 @@ bool CFileBin::Write(void *data, DWORD len)
     
     if (writed != len)
         return false;
-
+    
+    m_count ++;
     return true;
 }
 

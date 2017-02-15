@@ -21,7 +21,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v120_xp</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -77,10 +77,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\DLIS_new\FileBin.cpp" />
     <ClCompile Include="dlis.cpp" />
     <ClCompile Include="dlis_old.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\DLIS_new\FileBin.h" />
     <ClInclude Include="Dlis.h" />
     <ClInclude Include="dlis_iter.h" />
   </ItemGroup>

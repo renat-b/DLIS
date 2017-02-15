@@ -1,6 +1,8 @@
 #pragma warning(push)
 #pragma warning(disable : 4018 4101 4150 4715)
 
+
+
 // Модуль поддержки чтения и записи данных в формате DLIS 1.0
 //	Автор: Александр Газизулин (TGT Oil & Gas Services)
 //	Язык: C++03
@@ -40,6 +42,11 @@
 
 #include "Dlis.h"
 
+
+
+CFileBin   g_file_log;
+
+
 #ifndef NDEBUG
 //	extern int d_nfr = 0;
 //	void d_nfr290(const char *s) {
@@ -47,7 +54,8 @@
 //	}
 #endif // NDEBUG
 
-namespace Dlis {
+namespace Dlis 
+{
 
 using std::string;
 using std::vector;
@@ -269,12 +277,16 @@ void copy(byte *p, const T &v) {
 //	}
 //}
 void copy(std::ostream &os, std::istream &is, std::streamsize count) {
-	if (count <= 0) return;
+	if (count <= 0) 
+        return;
+
 	static const uint bufSize = 0xF000;
-	static char buf[bufSize];
-	size_t bytesLeft = count;
-	while (bytesLeft != 0) {
-		uint n = std::min(bytesLeft, bufSize);
+	static char       buf[bufSize];
+	size_t bytesLeft  = count;
+
+	while (bytesLeft != 0) 
+    {
+		uint n = min(bytesLeft, bufSize);
 		is.read(buf, n);
 		os.write(buf, n);
 		bytesLeft -= n;
@@ -285,12 +297,16 @@ void copy(std::ostream &os, std::istream &is, std::streamsize count) {
 
 // Функции обработки строк
 
-bool toChars(char *p, size_t charCnt, const string &s,
-			 bool allowTruncate = false) {
+bool toChars(char *p, size_t charCnt, const string &s, bool allowTruncate = false) 
+{
 	size_t sLen = s.length();
-	if (!allowTruncate && sLen > charCnt) return false;
-	memcpy(p, s.data(), std::min(sLen, charCnt));
-	if (sLen < charCnt) memset(p + sLen, ' ', charCnt - sLen);
+
+	if (!allowTruncate && sLen > charCnt) 
+        return false;
+
+	memcpy(p, s.data(), min(sLen, charCnt));
+	if (sLen < charCnt) 
+        memset(p + sLen, ' ', charCnt - sLen);
 	// - дополняем при необходимости пробелами
 	return true;
 }
@@ -747,7 +763,7 @@ bool inRange(int val, int lo, int hi) {	return val >= lo && val <= hi; }
 bool DateTime::valid() const {
 	return inRange(year, 1900, 2155) && inRange(timeZone, LST, GMT) &&
 		   inRange(month, 1, 12) && inRange(day, 1, 31) &&
-		   hour < 24 && min < 60 && sec < 60 && msec < 1000;
+		   hour < 24 && min_val < 60 && sec < 60 && msec < 1000;
 }
 
 /*static*/ bool Ident::valid(const string &s) {
@@ -1475,7 +1491,7 @@ public:
 		fromRaw(tz_m, p);
 		fromRaw(dt.day, p);
 		fromRaw(dt.hour, p);
-		fromRaw(dt.min, p);
+		fromRaw(dt.min_val, p);
 		fromRaw(dt.sec, p);
 		fromRaw(ms, p);
 		dt.year = 1900 + yr1900;
@@ -1500,7 +1516,7 @@ public:
 		toRaw(out, tz_m);
 		toRaw(out, val.day);
 		toRaw(out, val.hour);
-		toRaw(out, val.min);
+		toRaw(out, val.min_val);
 		toRaw(out, val.sec);
 		toRaw(out, ms);
 		return RI();
@@ -2872,7 +2888,7 @@ uint LogicalRecord::writeSegments(Output &out, uint spaceLeft,
 		int maxSegBodyLen = (int)spaceLeft - SegmentHeader::getSize();
 		// - NB: предполагая, что spaceLeft и SegmentHeader::getSize() четные
 		if (maxSegBodyLen < 0) break;
-		uint segBodyLen = std::min(bytesLeft, (long)maxSegBodyLen);
+		uint segBodyLen = min(bytesLeft, (long)maxSegBodyLen);
 		bool isFirst = m_pBody->tellg() == (std::streampos)0;
 		bool isLast = bytesLeft == segBodyLen;
 		uint segLen = writeSegment(out, segBodyLen, isFirst, isLast);
@@ -3010,12 +3026,12 @@ public:
 
 		void read(Input &input_file) 
         {
-			byte    m_db;               // Component Descriptor byte
+			byte    db;               // Component Descriptor byte
 
-			input_file.read(m_db);
+			input_file.read(db);
 
-			role = Role(m_db >> 5);     // 3 старших бита из байта m_db
-			fmt  = m_db;                // 5 младших битов из байта m_db
+			role = Role(db >> 5);     // 3 старших бита из байта m_db
+			fmt  = db;                // 5 младших битов из байта m_db
 		}
 
 		void write(Output &out) const 
@@ -3061,8 +3077,17 @@ public:
 	virtual void  read(Input &input_file) 
     {
 		reset();
-        
+
 		m_d.read(input_file);
+
+
+        byte    role;
+
+        role = m_d.role;
+        
+        int data = (int)((role << 5) | m_d.fmt.to_ulong());  
+
+        g_file_log.WriteInt32(data);
 
         if (roleGroupOf(m_d.role) != roleGroup()) 
             throw RI(RI::ProgErr, 7);
@@ -3076,8 +3101,15 @@ public:
 		writeCharacteristics(out);
 	}
 
-	Role       role()   const { return m_d.role; }
-	FormatBits format() const { return m_d.fmt;  }
+	Role       role()   const 
+    { 
+        return m_d.role; 
+    }
+
+	FormatBits format() const 
+    { 
+        return m_d.fmt;  
+    }
 
 protected:
 	virtual void reset() = 0;

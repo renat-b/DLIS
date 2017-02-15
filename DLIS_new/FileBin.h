@@ -5,7 +5,8 @@
 class CFileBin
 {
 private:
-    HANDLE m_file;
+    HANDLE      m_file;
+    size_t      m_count;
 
 public:
     CFileBin();

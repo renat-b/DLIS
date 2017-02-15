@@ -1,5 +1,4 @@
 /*! \file */
-
 /*! \mainpage
 	Модуль поддержки чтения и записи данных в формате DLIS 1.0 \n\n
 	Автор: Александр Газизулин
@@ -25,6 +24,8 @@
 #ifndef DLIS
 #define DLIS
 
+#include "..\\DLIS_new\\FileBin.h"
+
 #include <string>
 #include <vector>
 #include <list>
@@ -36,7 +37,14 @@
 
 #include "dlis_iter.h"
 
+
+
+extern CFileBin g_file_log;
+
+
 namespace Dlis {
+
+using namespace std;
 
 using std::string;
 using std::vector;
@@ -382,7 +390,7 @@ struct DateTime
 	};
 	DateTime() :
 		year(1900), timeZone(LST), month(1), day(1),
-		hour(0), min(0), sec(0), msec(0) {}
+		hour(0), min_val(0), sec(0), msec(0) {}
 	void setDate(uint16 yr, byte m = 1, byte d = 1) {
 		year = yr;
 		month = m;
@@ -391,7 +399,7 @@ struct DateTime
 	//!< Устанавливает дату (время дня не меняется)
 	void setTime(byte h, byte mn = 0, byte s = 0, uint16 ms = 0) {
 		hour = h;
-		min = mn;
+		min_val = mn;
 		sec = s;
 		msec = ms;
 	}
@@ -403,7 +411,7 @@ struct DateTime
 	byte month;			//!< Месяц (1..12)
 	byte day;			//!< День месяца (1..31)
 	byte hour;			//!< Часы (0..23)
-	byte min;			//!< Минуты (0..59)
+	byte min_val;			//!< Минуты (0..59)
 	byte sec;			//!< Секунды (0..59)
 	uint16 msec;		//!< Миллисекунды (0..999)
 };

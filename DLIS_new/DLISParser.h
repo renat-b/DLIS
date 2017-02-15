@@ -3,6 +3,10 @@
 #include    "new.h"
 #include    "windows.h"
 
+#include    "FileBin.h"
+
+extern CFileBin g_global_log;
+
 #pragma pack(push, 1)
 struct StorageUnitLabel
 {
