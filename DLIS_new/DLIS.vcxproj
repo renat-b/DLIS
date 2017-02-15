@@ -147,9 +147,11 @@
   <ItemGroup>
     <ClCompile Include="DLIS.cpp" />
     <ClCompile Include="DLISParser.cpp" />
+    <ClCompile Include="FileBin.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DLISParser.h" />
+    <ClInclude Include="FileBin.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

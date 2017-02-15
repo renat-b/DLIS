@@ -24,9 +24,15 @@
     <ClCompile Include="DLISParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FileBin.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DLISParser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FileBin.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
