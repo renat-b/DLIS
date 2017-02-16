@@ -172,21 +172,35 @@ private:
     enum constants
     {
         Kb         = 1024,
-        Mb         = Kb  * Kb,
+        Mb         = Kb * Kb,
         FILE_CHUNK = 16 * Mb,
+
+        MAX_TEMPLATE_ATTRIBUTES   = 32,
+        //
+        STATE_PARSER_FIRST        = 0x00,
+        STATE_PARSER_SET          = 0x01,
+        STATE_PARSER_OBJECT       = 0x02,
+        STATE_PARSER_TEMPLATE_ATTRIBUTE = 0x04,
+        STATE_PARSER_ATTRIBUTE    = 0x08, 
+    };
+    
+    struct TemplateAttributes
+    {
+        RepresentaionCodes  code;
+        UINT                count;
     };
 
     struct RepresentaionCodesLenght
     {
         RepresentaionCodes  code;
-        int                 lenght;
+        int                 length;
     };
 
     typedef unsigned char byte;
     //
     HANDLE              m_file;
     StorageUnitLabel    m_storage_unit_label;
-
+    
     struct FileChunk : MemoryBuffer
     {
         size_t      pos;
@@ -209,6 +223,11 @@ private:
 
     SegmentHeader      m_segment_header;
     ComponentHeader    m_component_header;
+    UINT               m_state;
+
+    TemplateAttributes m_template_attributes[MAX_TEMPLATE_ATTRIBUTES];
+    UINT               m_template_attributes_count;
+    UINT               m_attributes_count;
 
 private:
    static RepresentaionCodesLenght s_rep_codes_lenght[RC_LAST];
@@ -261,7 +280,7 @@ private:
 
     bool            ReadRawData(void *dst, size_t len);
 
-    bool            ReadRepresentationCode(RepresentaionCodes code, void **dst, size_t *len);
+    bool            ReadRepresentationCode(RepresentaionCodes code, void **dst, size_t *len, int count = 1);
 
     bool            ReadSet();
     bool            ReadObject();
