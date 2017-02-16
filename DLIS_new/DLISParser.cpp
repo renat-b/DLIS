@@ -54,7 +54,7 @@ void MemoryBuffer::Free()
 }
 
 
-CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_lenght[RC_LAST] = 
+CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] = 
 {
     { RC_FSHORT,  2  },
     { RC_FSINGL,  4  },
@@ -81,7 +81,7 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_lenght[RC_LAST] =
     { RC_OBNAME, -1  },
     { RC_OBJREF, -1  },
     { RC_ATTREF, -1  },
-    { RC_STATUS, -1  },
+    { RC_STATUS,  1  },
     { RC_UNITS,  -1  }
 };
 
@@ -726,10 +726,25 @@ bool CDLISParser::ReadRawData(void *dst, size_t len)
 
 bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, size_t *len, int count /*= 1*/)
 {
-    static char buf[128] = { 0 };
+    static byte buf[8 * Kb] = { 0 };
+    int    type_len;
+
+    type_len = s_rep_codes_length[code - 1].length;
+
+    if (type_len > -1)
+    {
+        type_len *= count;
+        ReadRawData(buf, type_len);
+        
+        *dst = buf;
+        *len = type_len;
+
+        return true;
+    }
+        
 
     if (count > 1)
-        if (s_rep_codes_lenght[code - 1].length == -1)
+        if (s_rep_codes_length[code - 1].length == -1)
         {
             for (int i = 0; i < count; i++)
                 ReadRepresentationCode(code, dst, len, 1);
@@ -760,10 +775,10 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
         case RC_DTIME: 
         case RC_STATUS:
             { 
-            	ReadRawData(buf, s_rep_codes_lenght[code - 1].length);
+            	ReadRawData(buf, s_rep_codes_length[code - 1].length);
 
                 *dst = buf;
-                *len = s_rep_codes_lenght[code - 1].length;
+                *len = s_rep_codes_length[code - 1].length;
 
                 break;
             }
@@ -815,6 +830,8 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
 
                 if (var_len > 1)
                     ReadRawData(&buf[1], var_len - 1);
+
+                Big2LittelEndian(buf, var_len);
 
                 *len = var_len;
                 *dst = buf;

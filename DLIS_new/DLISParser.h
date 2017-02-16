@@ -230,7 +230,7 @@ private:
     UINT               m_attributes_count;
 
 private:
-   static RepresentaionCodesLenght s_rep_codes_lenght[RC_LAST];
+   static RepresentaionCodesLenght s_rep_codes_length[RC_LAST];
  
 public:
     CDLISParser();

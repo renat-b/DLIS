@@ -6,9 +6,9 @@ int main(int argc, char *argv[])
 {
     Reader  dlis;
     
-    if (g_global_log.OpenWrite("../Dlis_examples/out.dat"))
+    if (g_global_log.OpenWrite("../Dlis_examples/out_new.dat"))
     {
-        dlis.open("../Dlis_examples/Sample2.dlis"); 
+        dlis.open("../Dlis_examples/new.dlis"); 
 
         RI r = dlis.read();
     
