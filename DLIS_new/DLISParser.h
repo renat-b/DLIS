@@ -228,6 +228,7 @@ private:
     TemplateAttributes m_template_attributes[MAX_TEMPLATE_ATTRIBUTES];
     UINT               m_template_attributes_count;
     UINT               m_attributes_count;
+    UINT               m_object_num;
 
 private:
    static RepresentaionCodesLenght s_rep_codes_length[RC_LAST];
@@ -285,4 +286,127 @@ private:
     bool            ReadSet();
     bool            ReadObject();
     bool            ReadAttribute();
+
+
+
+    void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code)
+    {
+        
+        str_rep_code[0] = 0;
+
+        switch (code)
+        {
+        case    RC_FSHORT:
+            strcpy(str_rep_code, "FSHORT");
+            break;
+
+        case    RC_FSINGL:
+            strcpy(str_rep_code, "FSINGL");
+            break;
+
+        case    RC_FSING1:
+            strcpy(str_rep_code, "FSING1");
+            break;
+
+        case    RC_FSING2:
+            strcpy(str_rep_code, "FSING2");
+            break;
+
+        case    RC_ISINGL:
+            strcpy(str_rep_code, "ISINGL");
+            break;
+
+        case    RC_VSINGL:
+            strcpy(str_rep_code, "VSINGL");
+            break;
+
+        case    RC_FDOUBL:
+            strcpy(str_rep_code, "FDOUBL");
+            break;
+
+        case    RC_FDOUB1:
+            strcpy(str_rep_code, "FDOUB1");
+            break;
+
+        case    RC_FDOUB2:
+            strcpy(str_rep_code, "FDOUB2");
+            break;
+
+        case    RC_CSINGL:
+            strcpy(str_rep_code, "CSINGL");
+            break;
+
+        case    RC_CDOUBL:
+            strcpy(str_rep_code, "CDOUBL");
+            break;
+
+        case    RC_SSHORT:
+            strcpy(str_rep_code, "SSHORT");
+            break;
+
+        case    RC_SNORM:
+            strcpy(str_rep_code, "SNORM");
+            break;
+
+        case    RC_SLONG:
+            strcpy(str_rep_code, "SLONG");
+            break;
+
+        case    RC_USHORT:
+            strcpy(str_rep_code, "USHORT");
+            break;
+
+        case    RC_UNORM:
+            strcpy(str_rep_code, "UNORM");
+            break;
+
+        case    RC_ULONG:
+            strcpy(str_rep_code, "ULONG");
+            break;
+
+        case    RC_UVARI:
+            strcpy(str_rep_code, "UVARI");
+            break;
+
+        case    RC_IDENT:
+            strcpy(str_rep_code, "IDENT");
+            break;
+
+        case    RC_ASCII:
+            strcpy(str_rep_code, "ASCII");
+            break;
+
+        case    RC_DTIME:
+            strcpy(str_rep_code, "DTIME");
+            break;
+
+        case    RC_ORIGIN:
+            strcpy(str_rep_code, "ORIGIN");
+            break;
+
+        case    RC_OBNAME:
+            strcpy(str_rep_code, "OBNAME");
+            break;
+
+        case    RC_OBJREF:
+            strcpy(str_rep_code, "OBJREF");
+            break;
+
+        case    RC_ATTREF:
+            strcpy(str_rep_code, "ATTREF");
+            break;
+
+        case    RC_STATUS:
+            strcpy(str_rep_code, "STATUS");
+            break;
+
+        case    RC_UNITS:
+            strcpy(str_rep_code, "UNITS");
+            break;
+
+        default: 
+            break;
+        }
+
+    }
 };

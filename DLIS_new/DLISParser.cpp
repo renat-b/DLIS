@@ -88,6 +88,8 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] =
 
 CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), m_template_attributes_count(0), m_attributes_count(0)
 {
+    m_object_num = 0;
+
     memset(&m_storage_unit_label,  0, sizeof(m_storage_unit_label));
     memset(&m_file_chunk,          0, sizeof(m_file_chunk));
     memset(&m_visible_record,      0, sizeof(m_visible_record));
@@ -729,6 +731,8 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
     static byte buf[8 * Kb] = { 0 };
     int    type_len;
 
+    memset(&buf[0], 0, sizeof(buf));
+
     type_len = s_rep_codes_length[code - 1].length;
 
     if (type_len > -1)
@@ -878,14 +882,23 @@ bool CDLISParser::ReadAttribute()
     RepresentaionCodes rep_code = RC_IDENT;
 
     if (m_state == STATE_PARSER_SET)
+    {
         m_state = STATE_PARSER_TEMPLATE_ATTRIBUTE;
-    if (m_state == STATE_PARSER_OBJECT)
-        m_state = STATE_PARSER_ATTRIBUTE;
+        printf("Template Attributes: \n");
 
+    }
+    if (m_state == STATE_PARSER_OBJECT)
+    {
+        m_state = STATE_PARSER_ATTRIBUTE;
+        printf("Object Attributes: \n");
+
+    }
 
     if (m_component_header.format & TypeAttribute::TypeAttrLable)
+    {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
-
+        printf("    Label: %s\n", val);
+    }
 
     if (m_component_header.format & TypeAttribute::TypeAttrCount)
     {
@@ -894,6 +907,8 @@ bool CDLISParser::ReadAttribute()
         assert(len <= sizeof(count));
         count = 0;
         memcpy(&count, val, len); 
+
+        printf("    Count: %d\n", count);
     }
 
 
@@ -909,18 +924,31 @@ bool CDLISParser::ReadAttribute()
     {
         if (m_state == STATE_PARSER_ATTRIBUTE)
             rep_code = m_template_attributes[m_attributes_count].code;
+
     } 
 
+    char str_rep_code[32];
+
+    DebugPrintRepCode(rep_code, str_rep_code);
+    printf("    Representation Code: %s\n", str_rep_code);
 
     if (m_component_header.format & TypeAttribute::TypeAttrUnits)
     {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
+
+        printf("    Unit: %s\n", val);
     }
 
 
     if (m_component_header.format & TypeAttribute::TypeAttrValue)
-       ReadRepresentationCode(rep_code, (void **)&val, &len, count);
+    {
+        ReadRepresentationCode(rep_code, (void **)&val, &len, count);
 
+        if (rep_code == RC_ASCII || rep_code == RC_IDENT)
+            printf("    Value: %s\n", val);
+        else
+            printf("    Value count: %I64u\n", len);
+    }
 
     if (m_state == STATE_PARSER_TEMPLATE_ATTRIBUTE)
     {
@@ -943,13 +971,19 @@ bool CDLISParser::ReadObject()
     char   *val;
     size_t  len;
     
+    printf("\n");
+    printf("Object num %d:\n", m_object_num ++);
+
     m_state = STATE_PARSER_OBJECT; 
     
     m_attributes_count = 0;
 
     if (m_component_header.format & TypeObject::TypeObjectName)
+    {
         ReadRepresentationCode(RC_OBNAME, (void**)&val, &len);
-    
+
+        printf("Object name: %s\n", val);
+    }
     return true;
 }
 
@@ -960,14 +994,22 @@ bool CDLISParser::ReadSet()
     size_t  len;
 
     m_state = STATE_PARSER_SET;
-    
+
+    m_object_num                = 0;
+
     m_attributes_count          = 0;
     m_template_attributes_count = 0; 
     memset(&m_template_attributes, 0 , sizeof(m_template_attributes));
 
-    if (m_component_header.format & TypeSet::TypeSetType)
-        ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
+    printf("\n");
+    printf("Set:\n");
 
+    if (m_component_header.format & TypeSet::TypeSetType)
+    {
+        ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
+        printf("Name: %s\n", val);
+
+    }
     if (m_component_header.format & TypeSet::TypeSetName)
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
 
