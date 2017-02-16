@@ -728,13 +728,14 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
 {
     static char buf[128] = { 0 };
 
-    if (count > 1 && s_rep_codes_lenght[code - 1].length == -1)
-    {
-        for (int i = 0; i < count; i++)
-            ReadRepresentationCode(code, dst, len, 1);
+    if (count > 1)
+        if (s_rep_codes_lenght[code - 1].length == -1)
+        {
+            for (int i = 0; i < count; i++)
+                ReadRepresentationCode(code, dst, len, 1);
 
-        return true;
-    }
+            return true;
+        }
 
 
     switch (code)
