@@ -872,7 +872,9 @@ bool CDLISParser::ReadAttribute()
     if (m_component_header.format & TypeAttribute::TypeAttrCount)
     {
         ReadRepresentationCode(RC_UVARI, (void **)&val, &len);
+        
         assert(len <= sizeof(count));
+        count = 0;
         memcpy(&count, val, len); 
     }
 
@@ -880,8 +882,9 @@ bool CDLISParser::ReadAttribute()
     if (m_component_header.format & TypeAttribute::TypeAttrRepresentationCode)
     {
         ReadRepresentationCode(RC_USHORT, (void **)&val, &len);
-        memset(&rep_code, 0 , sizeof(rep_code));
+        
         assert(len <= sizeof(rep_code));
+        memset(&rep_code, 0 , sizeof(rep_code));
         memcpy(&rep_code, val, len);
     }
     else
