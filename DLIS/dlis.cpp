@@ -433,26 +433,34 @@ public:
 	Input(std::istream *stream, ErrorLogImpl *err = NULL,
 		  std::streamsize byteCount = -1);
 	Input(const string &fileName, ErrorLogImpl *err);
-	void open(std::istream *stream, ErrorLogImpl *err = NULL,
-			  std::streamsize byteCount = -1);
+
+	void open(std::istream *stream, ErrorLogImpl *err = NULL, std::streamsize byteCount = -1);
 	void open(const string &fileName, ErrorLogImpl *err);
+
 	void close();
 	void addIssue(RI ri)
 		{ if (m_rErr) m_rErr->add(ri); }
+
 	void addIssue(RI::RetCode retCode, uint rcCase = 0)
-		{ if (m_rErr) m_rErr->add(RI(retCode, rcCase)); }
+	{ 
+        if (m_rErr)
+            m_rErr->add(RI(retCode, rcCase)); 
+    }
+
 // - NB: код функций addIssue надо бы объединить
 	ErrorLogImpl *pErrorLog() { return m_rErr; }
 	std::streampos getPos() { return m_ris->tellg(); }
-		std::streampos lastValidPos() { return m_lastValidPos; }
+	std::streampos lastValidPos() { return m_lastValidPos; }
 	bool atEnd();
 	// - NB: Функции getPos, atEnd не имеют атрибут const,
 	//		 т.к. его не имеет функция m_ris->tellg
 	void setPos(std::streampos pos);
 	void offset(std::streamoff off);
+
 	void read(void *pBuf, std::streamsize cnt);
 	template <class T> void read(T &v);
 	void read(std::ostream &os, std::streamsize cnt);
+
 private:
 	void check();
 	void storeLastValidPos() {
@@ -475,95 +483,118 @@ private:
 	ErrorLogImpl *m_rErr;
 }; // class Input
 
-Input::Input(std::istream *stream, ErrorLogImpl *err,
-			 std::streamsize byteCount) :
-	m_ris(stream),
-	m_lastValidPos(-1),
-	m_rErr(err)
+Input::Input(std::istream *stream, ErrorLogImpl *err, std::streamsize byteCount) : 
+    m_ris(stream), m_lastValidPos(-1), m_rErr(err)
 {
-	try {
+	try 
+    {
 		std::streamoff startPos = m_ris->tellg();
-		if (m_ris->fail()) throw RI(RI::ReadErr, 1);
-			#ifndef NDEBUG
-			d_curPos = m_ris->tellg();
-			m_ris->seekg(0, std::ios_base::end);
-			d_size = m_ris->tellg() - d_curPos;
-			m_ris->seekg(d_curPos);
-			#endif
-		storeLastValidPos();
-		m_endPos = (byteCount == -1) ? -1 : startPos + byteCount;
-	}
-	catch(RI ri) {
-		if (m_rErr) m_rErr->add(ri.toCritical());
-	}
-}
+		if (m_ris->fail()) 
+            throw RI(RI::ReadErr, 1);
 
-Input::Input(const string &fileName, ErrorLogImpl *err) :
-	m_ris(&m_ifs),
-	m_lastValidPos(-1),
-	m_rErr(err)
-{
-	try {
-		m_ifs.open(fileName.c_str(), m_ifs.binary);
-		if (m_ifs.fail()) throw RI(RI::OpenErr, 1);
-			#ifndef NDEBUG
-			d_curPos = m_ris->tellg();
-			m_ris->seekg(0, std::ios_base::end);
-			d_size = m_ris->tellg() - d_curPos;
-			m_ris->seekg(d_curPos);
-			#endif
-		storeLastValidPos();
-		m_endPos = -1;
-	}
-	catch(RI ri) {
-		if (m_rErr) m_rErr->add(ri.toCritical());
-	}
-}
-
-void Input::open(std::istream *stream, ErrorLogImpl *err,
-				 std::streamsize byteCount) {
-	close();
-	m_ris = stream;
-	m_rErr = err;
-	std::streamoff startPos = m_ris->tellg();
-	if (m_ris->fail()) throw RI(RI::ReadErr, 1);
 		#ifndef NDEBUG
 		d_curPos = m_ris->tellg();
 		m_ris->seekg(0, std::ios_base::end);
 		d_size = m_ris->tellg() - d_curPos;
 		m_ris->seekg(d_curPos);
 		#endif
+  
+		storeLastValidPos();
+
+		m_endPos = (byteCount == -1) ? -1 : startPos + byteCount;
+	}
+	catch(RI ri) 
+    {
+		if (m_rErr) m_rErr->add(ri.toCritical());
+	}
+}
+
+Input::Input(const string &fileName, ErrorLogImpl *err) : m_ris(&m_ifs), m_lastValidPos(-1), m_rErr(err)
+{
+	try 
+    {
+		m_ifs.open(fileName.c_str(), m_ifs.binary);
+		if (m_ifs.fail()) 
+            throw RI(RI::OpenErr, 1);
+
+#ifndef NDEBUG
+		d_curPos = m_ris->tellg();
+		m_ris->seekg(0, std::ios_base::end);
+		d_size = m_ris->tellg() - d_curPos;
+		m_ris->seekg(d_curPos);
+#endif
+
+		storeLastValidPos();
+		m_endPos = -1;
+	}
+	catch(RI ri) 
+    {
+		if (m_rErr) m_rErr->add(ri.toCritical());
+	}
+}
+
+void Input::open(std::istream *stream, ErrorLogImpl *err, std::streamsize byteCount) 
+{
+	close();
+
+	m_ris                   = stream;
+	m_rErr                  = err;
+	std::streamoff startPos = m_ris->tellg();
+
+	if (m_ris->fail()) 
+        throw RI(RI::ReadErr, 1);
+
+#ifndef NDEBUG
+	d_curPos = m_ris->tellg();
+	m_ris->seekg(0, std::ios_base::end);
+	d_size = m_ris->tellg() - d_curPos;
+	m_ris->seekg(d_curPos);
+#endif
+
 	storeLastValidPos();
 	m_endPos = (byteCount == -1) ? -1 : startPos + byteCount;
 }
 
-void Input::open(const string &fileName, ErrorLogImpl *err) {
+void Input::open(const string &fileName, ErrorLogImpl *err) 
+{
 	close();
+
 	m_ris = &m_ifs;
 	m_rErr = err;
+
 	m_ifs.open(fileName.c_str(), m_ifs.binary);
-	if (m_ifs.fail()) throw RI(RI::OpenErr, 1);
-		#ifndef NDEBUG
-		d_curPos = m_ris->tellg();
-		m_ris->seekg(0, std::ios_base::end);
-		d_size = m_ris->tellg() - d_curPos;
-		m_ris->seekg(d_curPos);
-		#endif
+
+	if (m_ifs.fail()) 
+        throw RI(RI::OpenErr, 1);
+
+	#ifndef NDEBUG
+	d_curPos = m_ris->tellg();
+	m_ris->seekg(0, std::ios_base::end);
+	d_size = m_ris->tellg() - d_curPos;
+	m_ris->seekg(d_curPos);
+	#endif
+
 	storeLastValidPos();
 	m_endPos = -1;
 }
 
-void Input::close() {
-	if (!m_ris) return;
-	m_rErr = NULL;
+void Input::close() 
+{
+	if (!m_ris) 
+        return;
+
+	m_rErr         = NULL;
 	m_lastValidPos = -1;
 	std::ifstream *pifs = dynamic_cast<std::ifstream *>(m_ris);
-	if (pifs) {
-// - NB: В текущей версии (с полем m_ifs) здесь pifs=&m_ifs
+
+	if (pifs) 
+    {
+        // - NB: В текущей версии (с полем m_ifs) здесь pifs=&m_ifs
 		pifs->close();
-//		delete pifs;	// - также закрывает файл
-// - NB: В текущей версии нельзя выполнять 'delete pifs' (см. выше)
+        //		delete pifs;	// - также закрывает файл
+        // - NB: В текущей версии нельзя выполнять 'delete pifs' (см. выше)
 	}
+
 	m_ris = NULL;
 }
 
