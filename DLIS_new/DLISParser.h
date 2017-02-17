@@ -289,7 +289,7 @@ private:
 
 
 
-    void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code)
+    void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size)
     {
         
         str_rep_code[0] = 0;
@@ -297,111 +297,111 @@ private:
         switch (code)
         {
         case    RC_FSHORT:
-            strcpy(str_rep_code, "FSHORT");
+            strcpy_s(str_rep_code, size, "FSHORT");
             break;
 
         case    RC_FSINGL:
-            strcpy(str_rep_code, "FSINGL");
+            strcpy_s(str_rep_code, size, "FSINGL");
             break;
 
         case    RC_FSING1:
-            strcpy(str_rep_code, "FSING1");
+            strcpy_s(str_rep_code, size, "FSING1");
             break;
 
         case    RC_FSING2:
-            strcpy(str_rep_code, "FSING2");
+            strcpy_s(str_rep_code, size, "FSING2");
             break;
 
         case    RC_ISINGL:
-            strcpy(str_rep_code, "ISINGL");
+            strcpy_s(str_rep_code, size, "ISINGL");
             break;
 
         case    RC_VSINGL:
-            strcpy(str_rep_code, "VSINGL");
+            strcpy_s(str_rep_code, size, "VSINGL");
             break;
 
         case    RC_FDOUBL:
-            strcpy(str_rep_code, "FDOUBL");
+            strcpy_s(str_rep_code, size, "FDOUBL");
             break;
 
         case    RC_FDOUB1:
-            strcpy(str_rep_code, "FDOUB1");
+            strcpy_s(str_rep_code, size, "FDOUB1");
             break;
 
         case    RC_FDOUB2:
-            strcpy(str_rep_code, "FDOUB2");
+            strcpy_s(str_rep_code, size, "FDOUB2");
             break;
 
         case    RC_CSINGL:
-            strcpy(str_rep_code, "CSINGL");
+            strcpy_s(str_rep_code, size, "CSINGL");
             break;
 
         case    RC_CDOUBL:
-            strcpy(str_rep_code, "CDOUBL");
+            strcpy_s(str_rep_code, size, "CDOUBL");
             break;
 
         case    RC_SSHORT:
-            strcpy(str_rep_code, "SSHORT");
+            strcpy_s(str_rep_code, size, "SSHORT");
             break;
 
         case    RC_SNORM:
-            strcpy(str_rep_code, "SNORM");
+            strcpy_s(str_rep_code, size, "SNORM");
             break;
 
         case    RC_SLONG:
-            strcpy(str_rep_code, "SLONG");
+            strcpy_s(str_rep_code, size, "SLONG");
             break;
 
         case    RC_USHORT:
-            strcpy(str_rep_code, "USHORT");
+            strcpy_s(str_rep_code, size, "USHORT");
             break;
 
         case    RC_UNORM:
-            strcpy(str_rep_code, "UNORM");
+            strcpy_s(str_rep_code, size, "UNORM");
             break;
 
         case    RC_ULONG:
-            strcpy(str_rep_code, "ULONG");
+            strcpy_s(str_rep_code, size, "ULONG");
             break;
 
         case    RC_UVARI:
-            strcpy(str_rep_code, "UVARI");
+            strcpy_s(str_rep_code, size, "UVARI");
             break;
 
         case    RC_IDENT:
-            strcpy(str_rep_code, "IDENT");
+            strcpy_s(str_rep_code, size, "IDENT");
             break;
 
         case    RC_ASCII:
-            strcpy(str_rep_code, "ASCII");
+            strcpy_s(str_rep_code, size, "ASCII");
             break;
 
         case    RC_DTIME:
-            strcpy(str_rep_code, "DTIME");
+            strcpy_s(str_rep_code, size, "DTIME");
             break;
 
         case    RC_ORIGIN:
-            strcpy(str_rep_code, "ORIGIN");
+            strcpy_s(str_rep_code, size, "ORIGIN");
             break;
 
         case    RC_OBNAME:
-            strcpy(str_rep_code, "OBNAME");
+            strcpy_s(str_rep_code, size, "OBNAME");
             break;
 
         case    RC_OBJREF:
-            strcpy(str_rep_code, "OBJREF");
+            strcpy_s(str_rep_code, size, "OBJREF");
             break;
 
         case    RC_ATTREF:
-            strcpy(str_rep_code, "ATTREF");
+            strcpy_s(str_rep_code, size, "ATTREF");
             break;
 
         case    RC_STATUS:
-            strcpy(str_rep_code, "STATUS");
+            strcpy_s(str_rep_code, size, "STATUS");
             break;
 
         case    RC_UNITS:
-            strcpy(str_rep_code, "UNITS");
+            strcpy_s(str_rep_code, size, "UNITS");
             break;
 
         default: 

@@ -929,7 +929,7 @@ bool CDLISParser::ReadAttribute()
 
     char str_rep_code[32];
 
-    DebugPrintRepCode(rep_code, str_rep_code);
+    DebugPrintRepCode(rep_code, str_rep_code, _countof(str_rep_code));
     printf("    Representation Code: %s\n", str_rep_code);
 
     if (m_component_header.format & TypeAttribute::TypeAttrUnits)
@@ -947,8 +947,10 @@ bool CDLISParser::ReadAttribute()
         if (rep_code == RC_ASCII || rep_code == RC_IDENT)
             printf("    Value: %s\n", val);
         else
-            printf("    Value count: %I64u\n", len);
+            printf("    Value size: %I64u\n", len);
     }
+
+    printf("\n");
 
     if (m_state == STATE_PARSER_TEMPLATE_ATTRIBUTE)
     {
