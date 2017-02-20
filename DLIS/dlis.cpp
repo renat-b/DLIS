@@ -5824,7 +5824,7 @@ void LogicalFile::Impl::read(Input &file_DLIS, bool &was_last)
 
 		visible_rcd.read(file_DLIS);
 
-		Input   input_visible_rcd(visible_rcd.pData(), file_DLIS.pErrorLog() /*, -1*/);
+		Input    input_visible_rcd(visible_rcd.pData(), file_DLIS.pErrorLog() /*, -1*/);
 
 		if (log_rcd_ended)
         {

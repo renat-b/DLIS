@@ -254,7 +254,6 @@ private:
 
     void            Big2LittelEndian(void *dst, size_t len);
     void            Big2LittelEndianByte(byte *byte);
-    void            RoleAndFormatFromByte(byte *role, byte *format);
      
     bool            ChunkNextBuffer(char **data, size_t len);
     bool            ChunkInitialize();
@@ -270,7 +269,6 @@ private:
     bool            StorageUnitLabelRead();
 
     bool            ReadLogicalFiles();
-    bool            ReadLogicalFiles2();
     bool            ReadLogicalFile();
     
     bool            ReadSegment();

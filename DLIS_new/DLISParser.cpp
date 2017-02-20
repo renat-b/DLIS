@@ -298,12 +298,6 @@ void CDLISParser::Big2LittelEndianByte(byte *bt)
 }
 
 
-void CDLISParser::RoleAndFormatFromByte(byte *role, byte *format)
-{
-    
-}
-
-
 bool CDLISParser::ChunkNextBuffer(char **data, size_t len)
 {
 
@@ -452,73 +446,6 @@ bool CDLISParser::StorageUnitLabelRead()
     
     if (r)
         m_storage_unit_label = *(StorageUnitLabel *)data;
-
-    return r;
-}
-
-
-bool CDLISParser::ReadLogicalFiles2()
-{
-    size_t   size = 80;
-
-    SegmentHeader header = { 0 };
-
-    char *data = (char *)&header;
-    DWORD len  = sizeof(header);
-    
-    UINT64  file_size;
-    UINT64  file_seek;
-
-    file_size = FileSize();
-
-    bool r = FileRead(data, len);
-    size += len;
-
-    if (!r)
-        return false;
-
-    Big2LittelEndian(&header.length, sizeof(header.length));
-    header.length -= sizeof(header);
-
-    if (header.length)
-    {
-       do 
-       {
-            char  *buf;
-            
-            buf = new(std::nothrow) char[header.length];
-            if (!buf)
-                return false;
-            
-            r = FileRead(buf, header.length);
-            size += header.length;
-            delete buf;
-
-            printf("data len: %d\n", header.length);
-
-            if (r)
-            {
-                file_seek = FileSeekGet();
-                if (file_seek >= file_size)
-                    break;
-
-                data = (char *)&header;
-                len  = sizeof(header);
-
-                r = FileRead(data, len);
-                size += len;
-                if (!r)
-                    return false;
-
-                Big2LittelEndian(&header.length, sizeof(header.length));
-                header.length -= sizeof(header);
-            }
-
-            if (!r)
-                break;
-       } 
-       while (header.length);
-    }
 
     return r;
 }
