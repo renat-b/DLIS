@@ -20,7 +20,7 @@ struct StorageUnitLabel
 
 
 #pragma pack(push, 1)
-struct VisibleRecordHeader
+struct  VisibleRecordHeader
 {
     short   length;
     byte    frm[2];
@@ -29,7 +29,7 @@ struct VisibleRecordHeader
 
 
 #pragma pack(push, 1)
-struct SegmentHeader
+struct  SegmentHeader
 {
     short              length;                 // segment length
     unsigned char      attributes;             // segment attributes byte
@@ -211,19 +211,31 @@ private:
     
     FileChunk        m_file_chunk;
 
-    struct DataPos
+    struct VisibleRecord
     {
         char      *current;
         char      *end; 
         size_t     len;
     };
 
-    DataPos            m_visible_record;
-    DataPos            m_segment;
+    struct SegmentInfo
+    {
+        char            *current;
+        char            *end;
+        size_t           len;
+        SegmentInfo     *next;
+    };
+    
+    SegmentInfo        m_segment_blocks[16];
+
+    VisibleRecord      m_visible_record;
+    SegmentInfo       *m_segment;
 
     SegmentHeader      m_segment_header;
     ComponentHeader    m_component_header;
     UINT               m_state;
+
+    bool               m_end_of_file;
 
     TemplateAttributes m_template_attributes[MAX_TEMPLATE_ATTRIBUTES];
     UINT               m_template_attributes_count;
@@ -259,19 +271,18 @@ private:
     bool            ChunkInitialize();
     bool            ChunkEOF();
 
+    bool            GetSegment(SegmentInfo **segment);
     
-    bool            SegmentIsSet(byte role);
-    bool            SegmentIsObject(byte role);
-    bool            SegmentIsAttr(byte role);
 
     bool            VisibleRecordNext();
 
     bool            StorageUnitLabelRead();
-
+    
     bool            ReadLogicalFiles();
     bool            ReadLogicalFile();
-    
+
     bool            ReadSegment();
+    bool            ReadSegment1();
     bool            ReadComponent();
 
     bool            HeaderSegmentGet(SegmentHeader *header);
@@ -285,126 +296,5 @@ private:
     bool            ReadObject();
     bool            ReadAttribute();
 
-
-
-    void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size)
-    {
-        
-        str_rep_code[0] = 0;
-
-        switch (code)
-        {
-        case    RC_FSHORT:
-            strcpy_s(str_rep_code, size, "FSHORT");
-            break;
-
-        case    RC_FSINGL:
-            strcpy_s(str_rep_code, size, "FSINGL");
-            break;
-
-        case    RC_FSING1:
-            strcpy_s(str_rep_code, size, "FSING1");
-            break;
-
-        case    RC_FSING2:
-            strcpy_s(str_rep_code, size, "FSING2");
-            break;
-
-        case    RC_ISINGL:
-            strcpy_s(str_rep_code, size, "ISINGL");
-            break;
-
-        case    RC_VSINGL:
-            strcpy_s(str_rep_code, size, "VSINGL");
-            break;
-
-        case    RC_FDOUBL:
-            strcpy_s(str_rep_code, size, "FDOUBL");
-            break;
-
-        case    RC_FDOUB1:
-            strcpy_s(str_rep_code, size, "FDOUB1");
-            break;
-
-        case    RC_FDOUB2:
-            strcpy_s(str_rep_code, size, "FDOUB2");
-            break;
-
-        case    RC_CSINGL:
-            strcpy_s(str_rep_code, size, "CSINGL");
-            break;
-
-        case    RC_CDOUBL:
-            strcpy_s(str_rep_code, size, "CDOUBL");
-            break;
-
-        case    RC_SSHORT:
-            strcpy_s(str_rep_code, size, "SSHORT");
-            break;
-
-        case    RC_SNORM:
-            strcpy_s(str_rep_code, size, "SNORM");
-            break;
-
-        case    RC_SLONG:
-            strcpy_s(str_rep_code, size, "SLONG");
-            break;
-
-        case    RC_USHORT:
-            strcpy_s(str_rep_code, size, "USHORT");
-            break;
-
-        case    RC_UNORM:
-            strcpy_s(str_rep_code, size, "UNORM");
-            break;
-
-        case    RC_ULONG:
-            strcpy_s(str_rep_code, size, "ULONG");
-            break;
-
-        case    RC_UVARI:
-            strcpy_s(str_rep_code, size, "UVARI");
-            break;
-
-        case    RC_IDENT:
-            strcpy_s(str_rep_code, size, "IDENT");
-            break;
-
-        case    RC_ASCII:
-            strcpy_s(str_rep_code, size, "ASCII");
-            break;
-
-        case    RC_DTIME:
-            strcpy_s(str_rep_code, size, "DTIME");
-            break;
-
-        case    RC_ORIGIN:
-            strcpy_s(str_rep_code, size, "ORIGIN");
-            break;
-
-        case    RC_OBNAME:
-            strcpy_s(str_rep_code, size, "OBNAME");
-            break;
-
-        case    RC_OBJREF:
-            strcpy_s(str_rep_code, size, "OBJREF");
-            break;
-
-        case    RC_ATTREF:
-            strcpy_s(str_rep_code, size, "ATTREF");
-            break;
-
-        case    RC_STATUS:
-            strcpy_s(str_rep_code, size, "STATUS");
-            break;
-
-        case    RC_UNITS:
-            strcpy_s(str_rep_code, size, "UNITS");
-            break;
-
-        default: 
-            break;
-        }
-
-    }
+    void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size);
 };

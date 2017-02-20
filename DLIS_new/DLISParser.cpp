@@ -86,7 +86,8 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] =
 };
 
 
-CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), m_template_attributes_count(0), m_attributes_count(0)
+CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), m_template_attributes_count(0), 
+    m_attributes_count(0), m_segment(NULL), m_end_of_file(false)
 {
     m_object_num = 0;
 
@@ -95,8 +96,15 @@ CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_
     memset(&m_visible_record,      0, sizeof(m_visible_record));
     memset(&m_segment_header,      0, sizeof(m_segment_header));
     memset(&m_component_header,    0, sizeof(m_component_header));
-    memset(&m_segment,             0, sizeof(m_segment));
     memset(&m_template_attributes, 0, sizeof(m_template_attributes));
+
+
+    memset(&m_segment_blocks, 0, sizeof(m_segment_blocks));
+    
+    for (int i = 0; i < (_countof(m_segment_blocks) - 1); i++)
+        m_segment_blocks[i].next = &m_segment_blocks[i + 1];
+    m_segment = &m_segment[0];
+
 }
 
 
@@ -371,30 +379,35 @@ bool CDLISParser::ChunkEOF()
 }
 
 
-bool CDLISParser::SegmentIsSet(byte role)
+bool CDLISParser::GetSegment(SegmentInfo **segment)
 {
-    bool r;
-    
-    r = (role == TypeRole::Redundant_Set) || (role == TypeRole::Replacement_Set) || (role == TypeRole::Set); 
-    return r;
-}
+    SegmentHeader segment_header;
 
+    *segment = &m_segment_blocks[0];
 
-bool CDLISParser::SegmentIsObject(byte role)
-{
-    bool r;
-    
-    r = role == TypeRole::Object;
-    return r;
-}
+    for (int i = 0; i < _countof(m_segment_blocks); i++)
+    {
+        SegmentInfo *seg = &m_segment_blocks[i];
+        
+        if (m_visible_record.current + sizeof(SegmentHeader) >= m_visible_record.end)
+            VisibleRecordNext();
 
+        HeaderSegmentGet(&segment_header);
+        
+        if (m_visible_record.current + segment_header.length >= m_visible_record.end)
+            VisibleRecordNext();
 
-bool CDLISParser::SegmentIsAttr(byte role)
-{
-    bool r;
-    
-    r = (role == TypeRole::Attribute) || (role == TypeRole::Invariant_Attribute) || (role == TypeRole::Absent_Attribute); 
-    return r;
+        seg->current = 0;
+        seg->end     = 0;
+       
+        if (segment_header.attributes  & Successor)
+            break;
+        
+        if (i == (_countof(m_segment_blocks) - 1))
+            seg->next = &m_segment_blocks[i + 1];
+        else
+            seg->next = NULL;
+    }
 }
 
 
@@ -436,9 +449,6 @@ bool CDLISParser::VisibleRecordNext()
 
 bool CDLISParser::StorageUnitLabelRead()
 {
-    //!!! FileRead((char *)&m_storage_unit_label, sizeof(m_storage_unit_label));
-    //return true;
-
     bool    r;
     char   *data;
 
@@ -453,27 +463,41 @@ bool CDLISParser::StorageUnitLabelRead()
 
 bool CDLISParser::ReadLogicalFiles()
 {
-    static int count = 0;
+    
 
-    bool  r = VisibleRecordNext();
-    if (r)
+
+
+    bool r = ReadSegment1();
+    
+    while (r)
     {
-        do
-        {
-            if (ChunkEOF())
-                break;
-
-            count ++;
-
-            r = ReadLogicalFile();
-             
-            if (r)
-                r = VisibleRecordNext();
-        }
-        while (r);
+        
+        r = ReadSegment1();
     }
 
     return r;
+
+   // static int count = 0;
+
+   // bool  r = VisibleRecordNext();
+   // if (r)
+   // {
+   //     do
+   //     {
+   //         if (ChunkEOF())
+   //             break;
+
+   //         count ++;
+
+   //         r = ReadLogicalFile();
+   //          
+   //         if (r)
+   //             r = VisibleRecordNext();
+   //     }
+   //     while (r);
+   // }
+
+   // return r;
 }
 
 
@@ -483,7 +507,7 @@ bool CDLISParser::ReadLogicalFile()
     
     while (r)
     {
-        r = ReadSegment();
+        r = ReadSegment1();
         if (r) 
         {
             // конец видимой записи 
@@ -498,6 +522,12 @@ bool CDLISParser::ReadLogicalFile()
 
 
 bool CDLISParser::ReadSegment()
+{
+    
+}
+
+
+bool CDLISParser::ReadSegment1()
 {
 
     bool r = HeaderSegmentGet(&m_segment_header);
@@ -524,7 +554,7 @@ bool CDLISParser::ReadSegment()
             while (r)
             {
                 // конец сегмента, выходим для получения новой порции данных
-                if (m_segment.current >= m_segment.end)
+                if (m_segment->current >= m_segment->end)
                     break;
 
                 r = ReadComponent();
@@ -606,9 +636,9 @@ bool CDLISParser::HeaderSegmentGet(SegmentHeader *header)
     
 
     // выставим значения сегмента, его актуальный размер, начало и конец
-    m_segment.current = m_visible_record.current + size_header;
-    m_segment.end     = m_segment.current + m_segment_header.length_data;
-    m_segment.len     = m_segment_header.length_data;
+    m_segment->current = m_visible_record.current + size_header;
+    m_segment->end     = m_segment->current + m_segment_header.length_data;
+    m_segment->len     = m_segment_header.length_data;
 
     return true;
 }
@@ -616,7 +646,7 @@ bool CDLISParser::HeaderSegmentGet(SegmentHeader *header)
 
 bool CDLISParser::HeaderComponentGet()
 {
-    byte desc = *(byte *)m_segment.current;
+    byte desc = *(byte *)m_segment->current;
     
     // получим роль и формат Component-а
     // для получения role сбросим вехрние 5 бит
@@ -633,10 +663,10 @@ bool CDLISParser::HeaderComponentGet()
     m_component_header.format = (desc & 0x1F);
     Big2LittelEndianByte(&m_component_header.format);
 
-    m_segment.current += sizeof(byte);
-    m_segment.len     -= sizeof(byte);
+    m_segment->current += sizeof(byte);
+    m_segment->len     -= sizeof(byte);
 
-    assert(m_segment.current <= m_segment.end);
+    assert(m_segment->current <= m_segment->end);
 
     return true;
 }
@@ -644,10 +674,10 @@ bool CDLISParser::HeaderComponentGet()
 
 bool CDLISParser::ReadRawData(void *dst, size_t len)
 {
-    memcpy(dst, m_segment.current, len);
+    memcpy(dst, m_segment->current, len);
     
-    m_segment.current += len;
-    m_segment.len     -= len;
+    m_segment->current += len;
+    m_segment->len     -= len;
 
     return true;
 }
@@ -675,13 +705,12 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
         
 
     if (count > 1)
-        if (s_rep_codes_length[code - 1].length == -1)
-        {
-            for (int i = 0; i < count; i++)
-                ReadRepresentationCode(code, dst, len, 1);
+    {
+        for (int i = 0; i < count; i++)
+            ReadRepresentationCode(code, dst, len, 1);
 
-            return true;
-        }
+        return true;
+    }
 
 
     switch (code)
@@ -943,4 +972,126 @@ bool CDLISParser::ReadSet()
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
 
     return true;
+}
+
+
+void CDLISParser::DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size)
+{
+    
+    str_rep_code[0] = 0;
+
+    switch (code)
+    {
+    case    RC_FSHORT:
+        strcpy_s(str_rep_code, size, "FSHORT");
+        break;
+
+    case    RC_FSINGL:
+        strcpy_s(str_rep_code, size, "FSINGL");
+        break;
+
+    case    RC_FSING1:
+        strcpy_s(str_rep_code, size, "FSING1");
+        break;
+
+    case    RC_FSING2:
+        strcpy_s(str_rep_code, size, "FSING2");
+        break;
+
+    case    RC_ISINGL:
+        strcpy_s(str_rep_code, size, "ISINGL");
+        break;
+
+    case    RC_VSINGL:
+        strcpy_s(str_rep_code, size, "VSINGL");
+        break;
+
+    case    RC_FDOUBL:
+        strcpy_s(str_rep_code, size, "FDOUBL");
+        break;
+
+    case    RC_FDOUB1:
+        strcpy_s(str_rep_code, size, "FDOUB1");
+        break;
+
+    case    RC_FDOUB2:
+        strcpy_s(str_rep_code, size, "FDOUB2");
+        break;
+
+    case    RC_CSINGL:
+        strcpy_s(str_rep_code, size, "CSINGL");
+        break;
+
+    case    RC_CDOUBL:
+        strcpy_s(str_rep_code, size, "CDOUBL");
+        break;
+
+    case    RC_SSHORT:
+        strcpy_s(str_rep_code, size, "SSHORT");
+        break;
+
+    case    RC_SNORM:
+        strcpy_s(str_rep_code, size, "SNORM");
+        break;
+
+    case    RC_SLONG:
+        strcpy_s(str_rep_code, size, "SLONG");
+        break;
+
+    case    RC_USHORT:
+        strcpy_s(str_rep_code, size, "USHORT");
+        break;
+
+    case    RC_UNORM:
+        strcpy_s(str_rep_code, size, "UNORM");
+        break;
+
+    case    RC_ULONG:
+        strcpy_s(str_rep_code, size, "ULONG");
+        break;
+
+    case    RC_UVARI:
+        strcpy_s(str_rep_code, size, "UVARI");
+        break;
+
+    case    RC_IDENT:
+        strcpy_s(str_rep_code, size, "IDENT");
+        break;
+
+    case    RC_ASCII:
+        strcpy_s(str_rep_code, size, "ASCII");
+        break;
+
+    case    RC_DTIME:
+        strcpy_s(str_rep_code, size, "DTIME");
+        break;
+
+    case    RC_ORIGIN:
+        strcpy_s(str_rep_code, size, "ORIGIN");
+        break;
+
+    case    RC_OBNAME:
+        strcpy_s(str_rep_code, size, "OBNAME");
+        break;
+
+    case    RC_OBJREF:
+        strcpy_s(str_rep_code, size, "OBJREF");
+        break;
+
+    case    RC_ATTREF:
+        strcpy_s(str_rep_code, size, "ATTREF");
+        break;
+
+    case    RC_STATUS:
+        strcpy_s(str_rep_code, size, "STATUS");
+        break;
+
+    case    RC_UNITS:
+        strcpy_s(str_rep_code, size, "UNITS");
+        break;
+
+    default: 
+        break;
+    }
+
 }
