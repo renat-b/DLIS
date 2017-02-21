@@ -379,35 +379,94 @@ bool CDLISParser::ChunkEOF()
 }
 
 
-bool CDLISParser::GetSegment(SegmentInfo **segment)
+bool CDLISParser::SegmentGet()
 {
-    SegmentHeader segment_header;
+    bool r = true;
 
-    *segment = &m_segment_blocks[0];
+    if (m_visible_record.current >= m_visible_record.end)
+        r = VisibleRecordNext();
 
-    for (int i = 0; i < _countof(m_segment_blocks); i++)
+    if (!r)
+        return false;
+
+
+    m_segment_header = *(SegmentHeader *)m_visible_record.current; 
+
+    //  получим полный размер сегмента и его атрибуты
+    Big2LittelEndian(&(m_segment_header.length), sizeof(m_segment_header.length));
+    Big2LittelEndianByte(&m_segment_header.attributes);
+    
+
+    short  size_header = (short)(offsetof(SegmentHeader, length_data));
+    // рассчитаем актуальный размер сегмента (содержащий данные  без метаданных)
+    m_segment_header.length_data = m_segment_header.length - size_header;
+
+    if (m_segment_header.attributes & Trailing_Length)
+        m_segment_header.length_data -= sizeof(short);
+
+    if (m_segment_header.attributes & Checksum)
+        m_segment_header.length_data -= sizeof(short);
+    
+    if (m_segment_header.attributes & Padding)
     {
-        SegmentInfo *seg = &m_segment_blocks[i];
+        byte  *pad_len;
+        char  *data;  
+        // рассчитаем количество padding (выравнивающих) символов для этого :
+        // прочитаем значение по адресу 
+        // начальное смещение + размер данных - 1 байт (т.к. в этом месте находится значение количества padding байт)
+        // по этому адресу содержится количество padding символов
+        data = m_visible_record.current + size_header;
         
-        if (m_visible_record.current + sizeof(SegmentHeader) >= m_visible_record.end)
-            VisibleRecordNext();
-
-        HeaderSegmentGet(&segment_header);
-        
-        if (m_visible_record.current + segment_header.length >= m_visible_record.end)
-            VisibleRecordNext();
-
-        seg->current = 0;
-        seg->end     = 0;
-       
-        if (segment_header.attributes  & Successor)
-            break;
-        
-        if (i == (_countof(m_segment_blocks) - 1))
-            seg->next = &m_segment_blocks[i + 1];
-        else
-            seg->next = NULL;
+        pad_len = (byte *)(data)+m_segment_header.length_data - sizeof(byte);
+        assert((data + (*pad_len)) <= m_visible_record.end);
+        m_segment_header.length_data -= *pad_len;
     }
+    
+
+    // выставим значения сегмента, его актуальный размер, начало и конец
+    m_segment->current = m_visible_record.current + size_header;
+    m_segment->end     = m_segment->current + m_segment_header.length_data;
+    m_segment->len     = m_segment_header.length_data;
+
+    m_visible_record.current += m_segment_header.length;
+
+    return true;
+}
+
+
+bool CDLISParser::SegmentProcess()
+{
+    bool r = true;
+
+    if (m_segment_header.attributes & Logical_Record_Structure)
+    {
+        // первый сегмент в логическом файле 
+        if (m_segment_header.type == FHLR)
+        {
+        }
+
+        // продолжение сегмента (второй и тд сегмент) в списке сегментов
+        if (m_segment_header.attributes & Successor)
+        {
+        }
+        
+
+        // последовательно вычитываем компоненты
+        r = ReadComponent();
+        while (r)
+        {
+            // конец сегмента, выходим для получения новой порции данных
+            if (m_segment->current >= m_segment->end)
+                break;
+
+            r = ReadComponent();
+        }
+
+
+    }
+   
+    return r;
+
 }
 
 
@@ -463,16 +522,15 @@ bool CDLISParser::StorageUnitLabelRead()
 
 bool CDLISParser::ReadLogicalFiles()
 {
-    
-
-
-
-    bool r = ReadSegment1();
-    
+    bool r = SegmentGet();
+        
     while (r)
     {
-        
-        r = ReadSegment1();
+        //
+        if (ChunkEOF()) 
+            break;
+             
+        r = SegmentGet();
     }
 
     return r;
@@ -507,7 +565,7 @@ bool CDLISParser::ReadLogicalFile()
     
     while (r)
     {
-        r = ReadSegment1();
+        r = ReadSegment();
         if (r) 
         {
             // конец видимой записи 
@@ -523,12 +581,6 @@ bool CDLISParser::ReadLogicalFile()
 
 bool CDLISParser::ReadSegment()
 {
-    
-}
-
-
-bool CDLISParser::ReadSegment1()
-{
 
     bool r = HeaderSegmentGet(&m_segment_header);
 
@@ -539,13 +591,11 @@ bool CDLISParser::ReadSegment1()
             // первый сегмент в логическом файле 
             if (m_segment_header.type == FHLR)
             {
-                int k = 0;
             }
 
             // продолжение сегмента (второй и тд сегмент) в списке сегментов
             if (m_segment_header.attributes & Successor)
             {
-                int k = 0;
             }
             
 
@@ -652,12 +702,15 @@ bool CDLISParser::HeaderComponentGet()
     // для получения role сбросим вехрние 5 бит
     // для получние format сбросим нижние 3 бита
     
-    int test_component_header = 0;
-    int component_header      = desc;
+    if (g_global_log->GetTestMode())
+    {
+        int test_component_header = 0;
+        int component_header      = desc;
 
-    g_global_log->ReadInt32(&test_component_header);
-    
-    assert(test_component_header == component_header);   
+        g_global_log->ReadInt32(&test_component_header);
+         
+        assert(test_component_header == component_header);   
+    }
 
     m_component_header.role   = (desc & 0xE0) >> 5;
     m_component_header.format = (desc & 0x1F);
@@ -840,20 +893,23 @@ bool CDLISParser::ReadAttribute()
     if (m_state == STATE_PARSER_SET)
     {
         m_state = STATE_PARSER_TEMPLATE_ATTRIBUTE;
-        printf("Template Attributes: \n");
+        if (g_global_log->GetTestMode())
+            printf("Template Attributes: \n");
 
     }
     if (m_state == STATE_PARSER_OBJECT)
     {
         m_state = STATE_PARSER_ATTRIBUTE;
-        printf("Object Attributes: \n");
+        if (g_global_log->GetTestMode())
+            printf("Object Attributes: \n");
 
     }
 
     if (m_component_header.format & TypeAttribute::TypeAttrLable)
     {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
-        printf("    Label: %s\n", val);
+        if (g_global_log->GetTestMode())
+            printf("    Label: %s\n", val);
     }
 
     if (m_component_header.format & TypeAttribute::TypeAttrCount)
@@ -864,7 +920,8 @@ bool CDLISParser::ReadAttribute()
         count = 0;
         memcpy(&count, val, len); 
 
-        printf("    Count: %d\n", count);
+        if (g_global_log->GetTestMode())
+            printf("    Count: %d\n", count);
     }
 
 
@@ -882,17 +939,21 @@ bool CDLISParser::ReadAttribute()
             rep_code = m_template_attributes[m_attributes_count].code;
 
     } 
+    
+    if (g_global_log->GetTestMode())
+    {
+        char str_rep_code[32];
 
-    char str_rep_code[32];
-
-    DebugPrintRepCode(rep_code, str_rep_code, _countof(str_rep_code));
-    printf("    Representation Code: %s\n", str_rep_code);
+        DebugPrintRepCode(rep_code, str_rep_code, _countof(str_rep_code));
+        printf("    Representation Code: %s\n", str_rep_code);
+    }
 
     if (m_component_header.format & TypeAttribute::TypeAttrUnits)
     {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
 
-        printf("    Unit: %s\n", val);
+        if (g_global_log->GetTestMode())
+            printf("    Unit: %s\n", val);
     }
 
 
@@ -900,13 +961,18 @@ bool CDLISParser::ReadAttribute()
     {
         ReadRepresentationCode(rep_code, (void **)&val, &len, count);
 
-        if (rep_code == RC_ASCII || rep_code == RC_IDENT)
-            printf("    Value: %s\n", val);
-        else
-            printf("    Value size: %I64u\n", len);
+        if (g_global_log->GetTestMode())
+        {
+            if (rep_code == RC_ASCII || rep_code == RC_IDENT)
+                printf("    Value: %s\n", val);
+            else
+                printf("    Value size: %I64u\n", len);
+        }
+
     }
 
-    printf("\n");
+    if (g_global_log->GetTestMode())
+        printf("\n");
 
     if (m_state == STATE_PARSER_TEMPLATE_ATTRIBUTE)
     {
@@ -928,9 +994,12 @@ bool CDLISParser::ReadObject()
 {
     char   *val;
     size_t  len;
-    
-    printf("\n");
-    printf("Object num %d:\n", m_object_num ++);
+
+    if (g_global_log->GetTestMode())
+    {
+        printf("\n");
+        printf("Object num %d:\n", m_object_num ++);
+    }
 
     m_state = STATE_PARSER_OBJECT; 
     
@@ -940,7 +1009,8 @@ bool CDLISParser::ReadObject()
     {
         ReadRepresentationCode(RC_OBNAME, (void**)&val, &len);
 
-        printf("Object name: %s\n", val);
+        if (g_global_log->GetTestMode())
+            printf("Object name: %s\n", val);
     }
     return true;
 }
@@ -959,13 +1029,18 @@ bool CDLISParser::ReadSet()
     m_template_attributes_count = 0; 
     memset(&m_template_attributes, 0 , sizeof(m_template_attributes));
 
-    printf("\n");
-    printf("Set:\n");
+    if (g_global_log->GetTestMode())
+    {
+        printf("\n");
+        printf("Set:\n");
+    }
 
     if (m_component_header.format & TypeSet::TypeSetType)
     {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
-        printf("Name: %s\n", val);
+
+        if (g_global_log->GetTestMode())
+            printf("Name: %s\n", val);
 
     }
     if (m_component_header.format & TypeSet::TypeSetName)

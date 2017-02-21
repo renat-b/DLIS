@@ -271,18 +271,17 @@ private:
     bool            ChunkInitialize();
     bool            ChunkEOF();
 
-    bool            GetSegment(SegmentInfo **segment);
-    
+    bool            SegmentGet();
+    bool            SegmentProcess(); 
 
     bool            VisibleRecordNext();
-
+    
     bool            StorageUnitLabelRead();
     
     bool            ReadLogicalFiles();
     bool            ReadLogicalFile();
 
     bool            ReadSegment();
-    bool            ReadSegment1();
     bool            ReadComponent();
 
     bool            HeaderSegmentGet(SegmentHeader *header);
