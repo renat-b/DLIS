@@ -117,10 +117,10 @@ bool CFileBin::Write(void *data, DWORD len)
 
 bool CFileBin::ReadInt32(int *data)
 {
-    bool  r;
-    DWORD len;
+    bool   r;
+    DWORD  len;
     
-    if (m_test_mode)
+    if (!m_test_mode)
         return true;
 
     len = sizeof(int);

@@ -6,7 +6,7 @@ int main()
 {
     g_global_log = new CFileBin;
 
-    g_global_log->SetTestMode(false);
+    g_global_log->SetTestMode(true);
 
     if (g_global_log->OpenRead("../Dlis_examples/out.dat"))
     {

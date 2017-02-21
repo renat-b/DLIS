@@ -87,23 +87,17 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] =
 
 
 CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), m_template_attributes_count(0), 
-    m_attributes_count(0), m_segment(NULL), m_end_of_file(false)
+    m_attributes_count(0)
 {
     m_object_num = 0;
 
+    memset(&m_segment,             0, sizeof(m_segment));
     memset(&m_storage_unit_label,  0, sizeof(m_storage_unit_label));
     memset(&m_file_chunk,          0, sizeof(m_file_chunk));
     memset(&m_visible_record,      0, sizeof(m_visible_record));
     memset(&m_segment_header,      0, sizeof(m_segment_header));
     memset(&m_component_header,    0, sizeof(m_component_header));
     memset(&m_template_attributes, 0, sizeof(m_template_attributes));
-
-
-    memset(&m_segment_blocks, 0, sizeof(m_segment_blocks));
-    
-    for (int i = 0; i < (_countof(m_segment_blocks) - 1); i++)
-        m_segment_blocks[i].next = &m_segment_blocks[i + 1];
-    m_segment = &m_segment[0];
 
 }
 
@@ -424,9 +418,9 @@ bool CDLISParser::SegmentGet()
     
 
     // выставим значения сегмента, его актуальный размер, начало и конец
-    m_segment->current = m_visible_record.current + size_header;
-    m_segment->end     = m_segment->current + m_segment_header.length_data;
-    m_segment->len     = m_segment_header.length_data;
+    m_segment.current = m_visible_record.current + size_header;
+    m_segment.end     = m_segment.current + m_segment_header.length_data;
+    m_segment.len     = m_segment_header.length_data;
 
     m_visible_record.current += m_segment_header.length;
 
@@ -456,7 +450,7 @@ bool CDLISParser::SegmentProcess()
         while (r)
         {
             // конец сегмента, выходим для получения новой порции данных
-            if (m_segment->current >= m_segment->end)
+            if (m_segment.current >= m_segment.end)
                 break;
 
             r = ReadComponent();
@@ -529,8 +523,11 @@ bool CDLISParser::ReadLogicalFiles()
         //
         if (ChunkEOF()) 
             break;
-             
-        r = SegmentGet();
+
+        r = SegmentProcess(); 
+
+        if (r)
+            r = SegmentGet();
     }
 
     return r;
@@ -604,7 +601,7 @@ bool CDLISParser::ReadSegment()
             while (r)
             {
                 // конец сегмента, выходим для получения новой порции данных
-                if (m_segment->current >= m_segment->end)
+                if (m_segment.current >= m_segment.end)
                     break;
 
                 r = ReadComponent();
@@ -686,9 +683,9 @@ bool CDLISParser::HeaderSegmentGet(SegmentHeader *header)
     
 
     // выставим значения сегмента, его актуальный размер, начало и конец
-    m_segment->current = m_visible_record.current + size_header;
-    m_segment->end     = m_segment->current + m_segment_header.length_data;
-    m_segment->len     = m_segment_header.length_data;
+    m_segment.current = m_visible_record.current + size_header;
+    m_segment.end     = m_segment.current + m_segment_header.length_data;
+    m_segment.len     = m_segment_header.length_data;
 
     return true;
 }
@@ -696,7 +693,7 @@ bool CDLISParser::HeaderSegmentGet(SegmentHeader *header)
 
 bool CDLISParser::HeaderComponentGet()
 {
-    byte desc = *(byte *)m_segment->current;
+    byte desc = *(byte *)m_segment.current;
     
     // получим роль и формат Component-а
     // для получения role сбросим вехрние 5 бит
@@ -716,10 +713,10 @@ bool CDLISParser::HeaderComponentGet()
     m_component_header.format = (desc & 0x1F);
     Big2LittelEndianByte(&m_component_header.format);
 
-    m_segment->current += sizeof(byte);
-    m_segment->len     -= sizeof(byte);
+    m_segment.current += sizeof(byte);
+    m_segment.len     -= sizeof(byte);
 
-    assert(m_segment->current <= m_segment->end);
+    assert(m_segment.current <= m_segment.end);
 
     return true;
 }
@@ -727,10 +724,10 @@ bool CDLISParser::HeaderComponentGet()
 
 bool CDLISParser::ReadRawData(void *dst, size_t len)
 {
-    memcpy(dst, m_segment->current, len);
+    memcpy(dst, m_segment.current, len);
     
-    m_segment->current += len;
-    m_segment->len     -= len;
+    m_segment.current += len;
+    m_segment.len     -= len;
 
     return true;
 }

@@ -218,24 +218,21 @@ private:
         size_t     len;
     };
 
-    struct SegmentInfo
+    struct SegmentRecord
     {
         char            *current;
         char            *end;
         size_t           len;
-        SegmentInfo     *next;
     };
     
-    SegmentInfo        m_segment_blocks[16];
-
     VisibleRecord      m_visible_record;
-    SegmentInfo       *m_segment;
+    SegmentRecord      m_segment;
 
     SegmentHeader      m_segment_header;
     ComponentHeader    m_component_header;
-    UINT               m_state;
 
-    bool               m_end_of_file;
+
+    UINT               m_state;
 
     TemplateAttributes m_template_attributes[MAX_TEMPLATE_ATTRIBUTES];
     UINT               m_template_attributes_count;
