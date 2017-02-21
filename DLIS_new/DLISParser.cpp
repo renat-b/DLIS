@@ -556,71 +556,6 @@ bool CDLISParser::ReadLogicalFiles()
 }
 
 
-bool CDLISParser::ReadLogicalFile()
-{
-    bool r = true;
-    
-    while (r)
-    {
-        r = ReadSegment();
-        if (r) 
-        {
-            // конец видимой записи 
-            if (m_visible_record.current >= m_visible_record.end)
-                break;
-        }
-    }
-
-    assert(m_visible_record.current == m_visible_record.end);
-    return r;
-}
-
-
-bool CDLISParser::ReadSegment()
-{
-
-    bool r = HeaderSegmentGet(&m_segment_header);
-
-    if (r) 
-    {
-        if (m_segment_header.attributes & Logical_Record_Structure)
-        {
-            // первый сегмент в логическом файле 
-            if (m_segment_header.type == FHLR)
-            {
-            }
-
-            // продолжение сегмента (второй и тд сегмент) в списке сегментов
-            if (m_segment_header.attributes & Successor)
-            {
-            }
-            
-
-            // последовательно вычитываем компоненты
-            r = ReadComponent();
-            while (r)
-            {
-                // конец сегмента, выходим для получения новой порции данных
-                if (m_segment.current >= m_segment.end)
-                    break;
-
-                r = ReadComponent();
-            }
-
-
-        }
-    }
-   
-    if (r)
-    {
-        // смещаемся на новый сегмент
-        m_visible_record.current += m_segment_header.length;
-    }
-
-    return r;
-}
-
-
 bool CDLISParser::ReadComponent()
 {
     bool r;
@@ -724,6 +659,29 @@ bool CDLISParser::HeaderComponentGet()
 
 bool CDLISParser::ReadRawData(void *dst, size_t len)
 {
+     
+    if (len > m_segment.len)
+    {
+        if ( !(m_segment_header.attributes & Successor))
+        {
+            assert(false); 
+        }
+
+        size_t old_len = m_segment.len;
+
+        memcpy(dst, m_segment.current, old_len);
+
+        if ( !SegmentGet())
+            return false;
+        
+        memcpy( ((char *)dst) + old_len, m_segment.current, len - old_len);
+
+        m_segment.current += len - old_len;
+        m_segment.len     -= len - old_len;
+
+        return true;
+    }
+
     memcpy(dst, m_segment.current, len);
     
     m_segment.current += len;

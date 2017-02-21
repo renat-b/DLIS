@@ -2,7 +2,6 @@
 
 #include    "new.h"
 #include    "windows.h"
-
 #include    "FileBin.h"
 
 extern CFileBin *g_global_log;
@@ -272,13 +271,8 @@ private:
     bool            SegmentProcess(); 
 
     bool            VisibleRecordNext();
-    
     bool            StorageUnitLabelRead();
-    
     bool            ReadLogicalFiles();
-    bool            ReadLogicalFile();
-
-    bool            ReadSegment();
     bool            ReadComponent();
 
     bool            HeaderSegmentGet(SegmentHeader *header);
