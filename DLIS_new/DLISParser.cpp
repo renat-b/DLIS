@@ -113,15 +113,19 @@ bool CDLISParser::Parse(const char *file_name)
     if (!file_name)
         return false;
 
+    // открываем файл
     if (!FileOpen(file_name))
         return false;
-    
-    if (!ChunkInitialize())
+
+    // инициализация внутреннего буфера файла    
+    if (!BufferInitialize())
         return false;
-        
-    if (!StorageUnitLabelRead())
+
+    // чтение заголовка DLIS        
+    if (!ReadStorageUnitLabel())
         return false;
-    
+
+    // чтение данных DLIS    
     if (!ReadLogicalFiles())
         return false;
 
@@ -299,10 +303,12 @@ void CDLISParser::Big2LittelEndianByte(byte *bt)
     *bt = dst;
 }
 
-
-bool CDLISParser::ChunkNextBuffer(char **data, size_t len)
+/*
+*  чтение очередно порции данных из файла
+*/
+bool CDLISParser::BufferNext(char **data, size_t len)
 {
-
+    // если в буфере есть требуемой длины размер, копируем и выходим
     if (len <= m_file_chunk.remaind)      
     {
         *data = m_file_chunk.data + m_file_chunk.pos;
@@ -312,7 +318,8 @@ bool CDLISParser::ChunkNextBuffer(char **data, size_t len)
         return true;
     }
 
-
+    // данных не хватило, читаем следующую порцию данных
+    // если есть остаток данных, копируем его в начало буфера
     if (m_file_chunk.remaind) 
     {
         char *src, *dst;
@@ -327,23 +334,25 @@ bool CDLISParser::ChunkNextBuffer(char **data, size_t len)
         m_file_chunk.size = 0;
 
 
+    // высчитаем правильный остаток данный который нужно вычитать из файла
     DWORD   amout;
     
     amout = min(FILE_CHUNK, (DWORD)(m_file_chunk.file_remaind));    
-
+    // резервируем память под новые данные
     if (!m_file_chunk.Resize(amout + m_file_chunk.remaind))
         return false;
  
-
+    // вычитываем данные
     if (!FileRead(m_file_chunk.data + m_file_chunk.remaind, amout))
         return false; 
 
-
+    // изменим счетчики
     m_file_chunk.file_remaind -= amout;
     m_file_chunk.remaind      += amout;
     m_file_chunk.pos           = 0;
     m_file_chunk.size_chunk    = m_file_chunk.remaind;
     
+    // отдаем данные размера len,  
     if (len <= m_file_chunk.remaind)      
     {
         *data = m_file_chunk.data;
@@ -352,12 +361,13 @@ bool CDLISParser::ChunkNextBuffer(char **data, size_t len)
         m_file_chunk.remaind  -= len;
         return true;
     }
-       
+
+    // если не получается, значит произошла ошибка 
     return false;
 }
 
 
-bool CDLISParser::ChunkInitialize()
+bool CDLISParser::BufferInitialize()
 {
     m_file_chunk.Free();
     memset(&m_file_chunk, 0, sizeof(m_file_chunk));
@@ -366,24 +376,29 @@ bool CDLISParser::ChunkInitialize()
     return true;
 }
 
-
-bool CDLISParser::ChunkEOF()
+/*
+* провера конца файла
+*/
+bool CDLISParser::BufferIsEOF()
 {
     return (m_file_chunk.remaind == 0 && m_file_chunk.file_remaind == 0);
 }
 
 
+/*
+*  получаем следующий сегмент данных 
+*/
 bool CDLISParser::SegmentGet()
 {
     bool r = true;
-
+    // если данных не хватает в текущем visible record, читаем следующую visible record
     if (m_visible_record.current >= m_visible_record.end)
         r = VisibleRecordNext();
 
     if (!r)
         return false;
 
-
+    // указатель на заголовок
     m_segment_header = *(SegmentHeader *)m_visible_record.current; 
 
     //  получим полный размер сегмента и его атрибуты
@@ -427,7 +442,9 @@ bool CDLISParser::SegmentGet()
     return true;
 }
 
-
+/*
+*  обрабатываем сегмент
+*/
 bool CDLISParser::SegmentProcess()
 {
     bool r = true;
@@ -446,14 +463,14 @@ bool CDLISParser::SegmentProcess()
         
 
         // последовательно вычитываем компоненты
-        r = ReadComponent();
+        r = ComponentRead();
         while (r)
         {
             // конец сегмента, выходим для получения новой порции данных
             if (m_segment.current >= m_segment.end)
                 break;
 
-            r = ReadComponent();
+            r = ComponentRead();
         }
 
 
@@ -463,10 +480,12 @@ bool CDLISParser::SegmentProcess()
 
 }
 
-
+/*
+*  получаем следующую visible record  
+*/
 bool CDLISParser::VisibleRecordNext()
 {
-
+    // обнулим текущую структуру
     m_visible_record.current = NULL;
     m_visible_record.end     = NULL;
     m_visible_record.len     = 0;    
@@ -474,20 +493,22 @@ bool CDLISParser::VisibleRecordNext()
     char                 *data;
     VisibleRecordHeader  *header;
 
-    bool r = ChunkNextBuffer(&data, sizeof(VisibleRecordHeader));
+    // читаем заголовок
+    bool r = BufferNext(&data, sizeof(VisibleRecordHeader));
 
     if (r) 
     {
         header = (VisibleRecordHeader *)data;
         Big2LittelEndian(&((*header).length), sizeof(header->length));
     }
-    
+
+    // читаем visible record размером указанным в заголовке 
     if (r)
     {
         char *record;
-
+        
         m_visible_record.len = header->length - sizeof(VisibleRecordHeader);
-        r = ChunkNextBuffer(&record, m_visible_record.len);            
+        r = BufferNext(&record, m_visible_record.len);            
 
         if (r)
         {
@@ -499,13 +520,15 @@ bool CDLISParser::VisibleRecordNext()
     return r;
 }
 
-
-bool CDLISParser::StorageUnitLabelRead()
+/*
+*  читаем заголовок DLIS
+*/
+bool CDLISParser::ReadStorageUnitLabel()
 {
     bool    r;
     char   *data;
 
-    r = ChunkNextBuffer(&data, sizeof(m_storage_unit_label));
+    r = BufferNext(&data, sizeof(m_storage_unit_label));
     
     if (r)
         m_storage_unit_label = *(StorageUnitLabel *)data;
@@ -514,6 +537,9 @@ bool CDLISParser::StorageUnitLabelRead()
 }
 
 
+/*
+*  читаем последовательно сегменты
+*/
 bool CDLISParser::ReadLogicalFiles()
 {
     bool r = SegmentGet();
@@ -521,7 +547,7 @@ bool CDLISParser::ReadLogicalFiles()
     while (r)
     {
         //
-        if (ChunkEOF()) 
+        if (BufferIsEOF()) 
             break;
 
         r = SegmentProcess(); 
@@ -531,36 +557,16 @@ bool CDLISParser::ReadLogicalFiles()
     }
 
     return r;
-
-   // static int count = 0;
-
-   // bool  r = VisibleRecordNext();
-   // if (r)
-   // {
-   //     do
-   //     {
-   //         if (ChunkEOF())
-   //             break;
-
-   //         count ++;
-
-   //         r = ReadLogicalFile();
-   //          
-   //         if (r)
-   //             r = VisibleRecordNext();
-   //     }
-   //     while (r);
-   // }
-
-   // return r;
 }
 
-
-bool CDLISParser::ReadComponent()
+/*
+* читаем компонет DLIS и обрабатываем его 
+*/
+bool CDLISParser::ComponentRead()
 {
     bool r;
     
-    r = HeaderComponentGet();
+    r = ComponentHeaderGet();
     if (r)
     {
         if (m_component_header.role == Absent_Attribute || m_component_header.role == Attribute || m_component_header.role == Invariant_Attribute)             
@@ -580,60 +586,13 @@ bool CDLISParser::ReadComponent()
     return r;
 }
 
-
-bool CDLISParser::HeaderSegmentGet(SegmentHeader *header)
-{
-    *header = *(SegmentHeader *)m_visible_record.current; 
-
-    //  получим полный размер сегмента и его атрибуты
-    Big2LittelEndian(&((*header).length), sizeof(header->length));
-    Big2LittelEndianByte(&((*header).attributes));
-    
-
-
-    short  size_header = (short)(offsetof(SegmentHeader, length_data));
-    // рассчитаем актуальный размер сегмента (содержащий данные  без метаданных)
-    header->length_data = header->length - size_header;
-
-    if (header->attributes & Trailing_Length)
-        header->length_data -= sizeof(short);
-
-    if (header->attributes & Checksum)
-        header->length_data -= sizeof(short);
-    
-    if (header->attributes & Padding)    
-    {
-        byte    *pad_len;
-        char    *data;  
-        // рассчитаем количество padding (выравнивающих) символов для этого :
-        // прочитаем значение по адресу 
-        // начальное смещение + размер данных - 1 байт (т.к. в этом месте находится значение количества padding байт)
-        // по этому адресу содержится количество padding символов
-        data = m_visible_record.current + size_header;
-        
-        pad_len = (byte *)(data) + header->length_data - sizeof(byte);
-        assert((data + (*pad_len)) <= m_visible_record.end);
-        header->length_data -= *pad_len;
-    }
-    
-
-    // выставим значения сегмента, его актуальный размер, начало и конец
-    m_segment.current = m_visible_record.current + size_header;
-    m_segment.end     = m_segment.current + m_segment_header.length_data;
-    m_segment.len     = m_segment_header.length_data;
-
-    return true;
-}
-
-
-bool CDLISParser::HeaderComponentGet()
+/*
+*
+*/
+bool CDLISParser::ComponentHeaderGet()
 {
     byte desc = *(byte *)m_segment.current;
-    
-    // получим роль и формат Component-а
-    // для получения role сбросим вехрние 5 бит
-    // для получние format сбросим нижние 3 бита
-    
+   
     if (g_global_log->GetTestMode())
     {
         int test_component_header = 0;
@@ -644,6 +603,9 @@ bool CDLISParser::HeaderComponentGet()
         assert(test_component_header == component_header);   
     }
 
+    // получим роль и формат Component-а
+    // для получения role сбросим вехрние 5 бит
+    // для получние format сбросим нижние 3 бита
     m_component_header.role   = (desc & 0xE0) >> 5;
     m_component_header.format = (desc & 0x1F);
     Big2LittelEndianByte(&m_component_header.format);
@@ -656,24 +618,30 @@ bool CDLISParser::HeaderComponentGet()
     return true;
 }
 
-
+/*
+* читаем сырые данные из буфера
+*/
 bool CDLISParser::ReadRawData(void *dst, size_t len)
 {
-     
+    // проверяем хватает ли нам данных в сегменте?
     if (len > m_segment.len)
     {
+        // если не хватает, проверяем это не последний сегмент в группе сегментов? Если последний, то ошибка
         if ( !(m_segment_header.attributes & Successor))
         {
             assert(false); 
+            return false;
         }
 
+        // вычитываем остаток данных из текущего сегмента
         size_t old_len = m_segment.len;
 
         memcpy(dst, m_segment.current, old_len);
-
+        // получаем новый сегмент
         if ( !SegmentGet())
             return false;
-        
+
+        // докопируем остаток требуемых данных из нового сегмента 
         memcpy( ((char *)dst) + old_len, m_segment.current, len - old_len);
 
         m_segment.current += len - old_len;
@@ -682,6 +650,7 @@ bool CDLISParser::ReadRawData(void *dst, size_t len)
         return true;
     }
 
+    // данных хватает, просто вычитываем требуемый объем данных
     memcpy(dst, m_segment.current, len);
     
     m_segment.current += len;
@@ -690,16 +659,21 @@ bool CDLISParser::ReadRawData(void *dst, size_t len)
     return true;
 }
 
-
+/*
+* вычитываем данные по representation code
+*/
 bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, size_t *len, int count /*= 1*/)
 {
+    // резервируем данные для быстрого доступа 8 килобайт
     static byte buf[8 * Kb] = { 0 };
     int    type_len;
 
     memset(&buf[0], 0, sizeof(buf));
 
+    // получаем размер representation code
     type_len = s_rep_codes_length[code - 1].length;
 
+    // если размер известен, просто копируем их в буфер и выходим
     if (type_len > -1)
     {
         type_len *= count;
@@ -711,7 +685,7 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
         return true;
     }
         
-
+    // если количество требуемых данных больше одного, последовательно их вычитываем
     if (count > 1)
     {
         for (int i = 0; i < count; i++)
@@ -720,37 +694,9 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
         return true;
     }
 
-
+    // читаем вариативные данные
     switch (code)
     {
-        case RC_FSHORT:
-        case RC_FSINGL:
-        case RC_FSING1:
-        case RC_FSING2:
-        case RC_ISINGL:
-        case RC_VSINGL:
-        case RC_FDOUBL:
-        case RC_FDOUB1:
-        case RC_FDOUB2:
-        case RC_CSINGL:
-        case RC_CDOUBL:
-        case RC_SSHORT:
-        case RC_SNORM: 
-        case RC_SLONG: 
-        case RC_USHORT:
-        case RC_UNORM: 
-        case RC_ULONG: 
-        case RC_DTIME: 
-        case RC_STATUS:
-            { 
-            	ReadRawData(buf, s_rep_codes_length[code - 1].length);
-
-                *dst = buf;
-                *len = s_rep_codes_length[code - 1].length;
-
-                break;
-            }
-
         case RC_IDENT:
         case RC_ASCII:
         case RC_UNITS:
@@ -759,14 +705,16 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
                 void     *ptr;
                 
                 UINT      str_len = 0;
-                
+                // в зависимости от code сначала читаем размер данных        
                 if (code == RC_ASCII)
                     ReadRepresentationCode(RC_UVARI,  &ptr, &count);
                 else
                     ReadRepresentationCode(RC_USHORT, &ptr, &count);
 
+                // получаем размер данных в байтах
                 assert(count <= sizeof(str_len));
                 memcpy(&str_len, ptr, count);
+                // читаем сами данные
                 ReadRawData(buf, str_len);
                 
                 *dst = buf;
@@ -778,10 +726,14 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
         case RC_ORIGIN:
             {
                 byte  var_len;
-                
+
+                // определим размер данных
+                // верхние 2 бита определяют полное количество байт которое надо считать,
+                // в 6 нижних, лежат данные 
                 memset(&buf[0], 0, sizeof(buf));
                 ReadRawData(buf, 1);
-                
+
+                // определим полный размер в байтах который нужно считать               
                 if ((*buf & 0xC0) == 0xC0)
                 {
                     var_len = 4;
@@ -795,10 +747,11 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
                 else
                     var_len = 1;
 
-
+                // дочитаем данные
                 if (var_len > 1)
                     ReadRawData(&buf[1], var_len - 1);
 
+                // конвертируем считанные данные 
                 Big2LittelEndian(buf, var_len);
 
                 *len = var_len;
@@ -837,7 +790,9 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
     return true;
 }
 
-
+/*
+* читаем атрибут объекта или шаблона (template)
+*/
 bool CDLISParser::ReadAttribute()
 {
     char      *val;
@@ -845,6 +800,7 @@ bool CDLISParser::ReadAttribute()
     UINT       count            = 1;
     RepresentaionCodes rep_code = RC_IDENT;
 
+    // если первый атрибут, определим это атрибут объекта или шаблона
     if (m_state == STATE_PARSER_SET)
     {
         m_state = STATE_PARSER_TEMPLATE_ATTRIBUTE;
@@ -860,6 +816,7 @@ bool CDLISParser::ReadAttribute()
 
     }
 
+    // последовательно читаем свойства атрибута
     if (m_component_header.format & TypeAttribute::TypeAttrLable)
     {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
@@ -878,7 +835,6 @@ bool CDLISParser::ReadAttribute()
         if (g_global_log->GetTestMode())
             printf("    Count: %d\n", count);
     }
-
 
     if (m_component_header.format & TypeAttribute::TypeAttrRepresentationCode)
     {
@@ -929,6 +885,7 @@ bool CDLISParser::ReadAttribute()
     if (g_global_log->GetTestMode())
         printf("\n");
 
+    // если это шаблон, добавим его в массив шаблонов текущего объекта
     if (m_state == STATE_PARSER_TEMPLATE_ATTRIBUTE)
     {
         m_template_attributes[m_template_attributes_count].code  = rep_code;
@@ -938,13 +895,16 @@ bool CDLISParser::ReadAttribute()
     }
     else if (m_state == STATE_PARSER_ATTRIBUTE)
     {
+        // текущий номер атрибута
         m_attributes_count ++;
     }
 
     return true;
 }
 
-
+/*
+* читаем объект
+*/
 bool CDLISParser::ReadObject()
 {
     char   *val;
@@ -970,7 +930,9 @@ bool CDLISParser::ReadObject()
     return true;
 }
 
-
+/*
+*  читаем Set
+*/
 bool CDLISParser::ReadSet()
 {
     char   *val;
@@ -1004,7 +966,9 @@ bool CDLISParser::ReadSet()
     return true;
 }
 
-
+/*
+* принтуем код объекта в его строковое описание (для отладки)
+*/
 void CDLISParser::DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size)
 {
     

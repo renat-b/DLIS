@@ -4,6 +4,7 @@
 #include    "windows.h"
 #include    "FileBin.h"
 
+// глобальный объект лога (для отладки)
 extern CFileBin *g_global_log;
 
 #pragma pack(push, 1)
@@ -154,6 +155,7 @@ enum EFLRType
     LAST_Public_EFLR_Code = DICT,
 };
 
+// буфер реаллокации данных
 struct MemoryBuffer
 {
     char            *data;
@@ -196,10 +198,12 @@ private:
     };
 
     typedef unsigned char byte;
-    //
+    //  хендл файла 
     HANDLE              m_file;
+    // заголовок DLIS
     StorageUnitLabel    m_storage_unit_label;
-    
+
+    // внутренний буфера чтения из файла DLIS    
     struct FileChunk : MemoryBuffer
     {
         size_t      pos;
@@ -210,6 +214,7 @@ private:
     
     FileChunk        m_file_chunk;
 
+    // структура DLIS visible record
     struct VisibleRecord
     {
         char      *current;
@@ -217,6 +222,7 @@ private:
         size_t     len;
     };
 
+    // структура DLIS сегмента 
     struct SegmentRecord
     {
         char            *current;
@@ -224,6 +230,7 @@ private:
         size_t           len;
     };
     
+
     VisibleRecord      m_visible_record;
     SegmentRecord      m_segment;
 
@@ -245,8 +252,10 @@ public:
     CDLISParser();
     ~CDLISParser();
 
+    // парсинг DLIS
     bool            Parse(const char *file_name);
 
+    // инициализация, выгрузка внутренних буферов и данных из парсера
     bool            Initialize();
     void            Shutdown();
 
@@ -259,32 +268,37 @@ private:
     UINT64          FileSeekGet();
     void            FileSeekSet(UINT64 offset);
     UINT64          FileSize();
-
+    // преобразования bit 2 littel endian
     void            Big2LittelEndian(void *dst, size_t len);
     void            Big2LittelEndianByte(byte *byte);
-     
-    bool            ChunkNextBuffer(char **data, size_t len);
-    bool            ChunkInitialize();
-    bool            ChunkEOF();
 
+    // чтение заголовка и логических файлов
+    bool            ReadStorageUnitLabel();
+    bool            ReadLogicalFiles();
+
+    // чтение внутреннего буфера
+    bool            BufferNext(char **data, size_t len);
+    bool            BufferInitialize();
+    bool            BufferIsEOF();
+    bool            VisibleRecordNext();
+
+    // чтение сегмента DLIS данных 
     bool            SegmentGet();
     bool            SegmentProcess(); 
 
-    bool            VisibleRecordNext();
-    bool            StorageUnitLabelRead();
-    bool            ReadLogicalFiles();
-    bool            ReadComponent();
+    // чтение компонента DLIS
+    bool            ComponentRead();
+    bool            ComponentHeaderGet();
 
-    bool            HeaderSegmentGet(SegmentHeader *header);
-    bool            HeaderComponentGet();
-
+    // чтение сырых данных DLIS
     bool            ReadRawData(void *dst, size_t len);
-
     bool            ReadRepresentationCode(RepresentaionCodes code, void **dst, size_t *len, int count = 1);
 
+    // чтение атрибутов компонента DLIS
     bool            ReadSet();
     bool            ReadObject();
     bool            ReadAttribute();
 
+    // распечатка code representation
     void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size);
 };
