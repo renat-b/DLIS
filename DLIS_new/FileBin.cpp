@@ -1,7 +1,7 @@
 #include "FileBin.h"
 #include "windows.h"
 
-CFileBin::CFileBin() : m_file(INVALID_HANDLE_VALUE), m_count(0), m_test_mode(true)
+CFileBin::CFileBin() : m_file(INVALID_HANDLE_VALUE), m_count(0), m_test_mode(false), m_print_mode(false)
 {
 }
 
@@ -47,15 +47,27 @@ bool CFileBin::OpenWrite(const char *file_name)
 }
 
 
-void CFileBin::SetTestMode(bool test_mode)
+void CFileBin::SetTestCompareFilesMode(bool test_mode)
 {
     m_test_mode = test_mode;
 }
 
 
-bool CFileBin::GetTestMode()
+bool CFileBin::IsCompareFilesMode()
 {
     return m_test_mode;
+}
+
+
+void CFileBin::SetPrintMode(bool print_mode)
+{
+    m_print_mode = print_mode;
+}
+
+
+bool CFileBin::IsPrintMode()
+{
+    return m_print_mode;
 }
 
 

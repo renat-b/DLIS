@@ -593,7 +593,7 @@ bool CDLISParser::ComponentHeaderGet()
 {
     byte desc = *(byte *)m_segment.current;
    
-    if (g_global_log->GetTestMode())
+    if (g_global_log->IsCompareFilesMode())
     {
         int test_component_header = 0;
         int component_header      = desc;
@@ -641,7 +641,7 @@ bool CDLISParser::ReadRawData(void *dst, size_t len)
         if ( !SegmentGet())
             return false;
 
-        // докопируем остаток требуемых данных из нового сегмента 
+        // до-копируем остаток требуемых данных из нового сегмента 
         memcpy( ((char *)dst) + old_len, m_segment.current, len - old_len);
 
         m_segment.current += len - old_len;
@@ -804,14 +804,14 @@ bool CDLISParser::ReadAttribute()
     if (m_state == STATE_PARSER_SET)
     {
         m_state = STATE_PARSER_TEMPLATE_ATTRIBUTE;
-        if (g_global_log->GetTestMode())
+        if (g_global_log->IsPrintMode())
             printf("Template Attributes: \n");
 
     }
     if (m_state == STATE_PARSER_OBJECT)
     {
         m_state = STATE_PARSER_ATTRIBUTE;
-        if (g_global_log->GetTestMode())
+        if (g_global_log->IsPrintMode())
             printf("Object Attributes: \n");
 
     }
@@ -820,8 +820,13 @@ bool CDLISParser::ReadAttribute()
     if (m_component_header.format & TypeAttribute::TypeAttrLable)
     {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
-        if (g_global_log->GetTestMode())
-            printf("    Label: %s\n", val);
+        if (g_global_log->IsPrintMode())
+        {
+            char str[128];
+        
+            DebugPrintAttrCode(m_component_header.role, str, sizeof(str));
+            printf("    Label: %s (%s)\n", val, str);
+        }
     }
 
     if (m_component_header.format & TypeAttribute::TypeAttrCount)
@@ -832,7 +837,7 @@ bool CDLISParser::ReadAttribute()
         count = 0;
         memcpy(&count, val, len); 
 
-        if (g_global_log->GetTestMode())
+        if (g_global_log->IsPrintMode())
             printf("    Count: %d\n", count);
     }
 
@@ -851,7 +856,7 @@ bool CDLISParser::ReadAttribute()
 
     } 
     
-    if (g_global_log->GetTestMode())
+    if (g_global_log->IsPrintMode())
     {
         char str_rep_code[32];
 
@@ -863,7 +868,7 @@ bool CDLISParser::ReadAttribute()
     {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
 
-        if (g_global_log->GetTestMode())
+        if (g_global_log->IsPrintMode())
             printf("    Unit: %s\n", val);
     }
 
@@ -872,7 +877,7 @@ bool CDLISParser::ReadAttribute()
     {
         ReadRepresentationCode(rep_code, (void **)&val, &len, count);
 
-        if (g_global_log->GetTestMode())
+        if (g_global_log->IsPrintMode())
         {
             if (rep_code == RC_ASCII || rep_code == RC_IDENT)
                 printf("    Value: %s\n", val);
@@ -882,7 +887,7 @@ bool CDLISParser::ReadAttribute()
 
     }
 
-    if (g_global_log->GetTestMode())
+    if (g_global_log->IsPrintMode())
         printf("\n");
 
     // если это шаблон, добавим его в массив шаблонов текущего объекта
@@ -910,7 +915,7 @@ bool CDLISParser::ReadObject()
     char   *val;
     size_t  len;
 
-    if (g_global_log->GetTestMode())
+    if (g_global_log->IsPrintMode())
     {
         printf("\n");
         printf("Object num %d:\n", m_object_num ++);
@@ -924,8 +929,14 @@ bool CDLISParser::ReadObject()
     {
         ReadRepresentationCode(RC_OBNAME, (void**)&val, &len);
 
-        if (g_global_log->GetTestMode())
-            printf("Object name: %s\n", val);
+        if (g_global_log->IsPrintMode())
+        {
+            char   str[128];
+        
+            DebugPrintAttrCode(m_component_header.role, str, sizeof(str));
+            printf("Object name: %s (%s)\n", val, str);
+
+        }
     }
     return true;
 }
@@ -944,9 +955,9 @@ bool CDLISParser::ReadSet()
 
     m_attributes_count          = 0;
     m_template_attributes_count = 0; 
-    memset(&m_template_attributes, 0 , sizeof(m_template_attributes));
+    memset(&m_template_attributes, 0, sizeof(m_template_attributes));
 
-    if (g_global_log->GetTestMode())
+    if (g_global_log->IsPrintMode())
     {
         printf("\n");
         printf("Set:\n");
@@ -956,10 +967,15 @@ bool CDLISParser::ReadSet()
     {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
 
-        if (g_global_log->GetTestMode())
-            printf("Name: %s\n", val);
-
+        if (g_global_log->IsPrintMode())
+        {
+            char   str[128];
+        
+            DebugPrintAttrCode(m_component_header.role, str, sizeof(str));
+            printf("Name: %s (%s)\n", val, str);
+        }
     }
+
     if (m_component_header.format & TypeSet::TypeSetName)
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
 
@@ -1086,6 +1102,47 @@ void CDLISParser::DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code,
 
     default: 
         break;
+    }
+
+}
+
+
+void CDLISParser::DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t size)
+{
+    str_attr_code[0] = 0;   
+   
+    switch (attr_code)
+    {
+        case Absent_Attribute:
+            strcpy_s(str_attr_code, size, "Absent Attribute");
+            break;
+    
+        case Attribute: 
+            strcpy_s(str_attr_code, size, "Attribute");
+            break;
+    
+        case Invariant_Attribute: 
+            strcpy_s(str_attr_code, size, "Invariant Attribute");
+            break;
+    
+        case Object:
+            strcpy_s(str_attr_code, size, "Object");
+            break;
+    
+        case Redundant_Set:
+            strcpy_s(str_attr_code, size, "Redundant Set");
+            break;
+    
+        case Replacement_Set:
+            strcpy_s(str_attr_code, size, "Replacement Set");
+            break;
+
+        case Set:
+            strcpy_s(str_attr_code, size, "Set");
+            break;
+
+        default:
+            break;
     }
 
 }
