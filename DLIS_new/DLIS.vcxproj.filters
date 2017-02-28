@@ -13,6 +13,18 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\DLIS">
+      <UniqueIdentifier>{3d95c4de-b407-4691-9702-3ef3e4a7a235}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Common">
+      <UniqueIdentifier>{cf658336-04aa-404c-b87a-7790ae93d146}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\DLIS">
+      <UniqueIdentifier>{060b6f9d-1ab0-48b8-b01c-6c0999bed8b3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Common">
+      <UniqueIdentifier>{1307e102-ca7c-4f5e-b339-5e71a97d57df}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -22,18 +34,27 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DLISParser.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\DLIS</Filter>
     </ClCompile>
     <ClCompile Include="FileBin.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="DlisAllocator.cpp">
+      <Filter>Source Files\DLIS</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DLISParser.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\DLIS</Filter>
     </ClInclude>
     <ClInclude Include="FileBin.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="DlisCommon.h">
+      <Filter>Header Files\DLIS</Filter>
+    </ClInclude>
+    <ClInclude Include="DlisAllocator.h">
+      <Filter>Header Files\DLIS</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

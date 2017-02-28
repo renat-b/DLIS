@@ -11,7 +11,7 @@ int main()
     g_global_log->SetPrintMode(true);
 
     if (g_global_log->IsCompareFilesMode())
-        if (!g_global_log->OpenRead("../Dlis_examples/TestEWLDlis_1485963328769.bak.dat"))
+        if (!g_global_log->OpenRead("../Dlis_examples/Sample2.dat"))
             return -1;
         
 

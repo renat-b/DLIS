@@ -426,7 +426,7 @@ bool CDLISParser::SegmentGet()
         // по этому адресу содержится количество padding символов
         data = m_visible_record.current + size_header;
         
-        pad_len = (byte *)(data)+m_segment_header.length_data - sizeof(byte);
+        pad_len = (byte *)(data) + m_segment_header.length_data - sizeof(byte);
         assert((data + (*pad_len)) <= m_visible_record.end);
         m_segment_header.length_data -= *pad_len;
     }
