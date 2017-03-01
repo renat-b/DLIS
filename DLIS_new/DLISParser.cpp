@@ -87,7 +87,7 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] =
 
 
 CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), m_template_attributes_count(0), 
-    m_attributes_count(0)
+    m_attributes_count(0), m_sets(NULL), m_set_current(NULL), m_object_current(NULL)
 {
     m_object_num = 0;
 
@@ -98,7 +98,6 @@ CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_
     memset(&m_segment_header,      0, sizeof(m_segment_header));
     memset(&m_component_header,    0, sizeof(m_component_header));
     memset(&m_template_attributes, 0, sizeof(m_template_attributes));
-
 }
 
 
@@ -135,8 +134,17 @@ bool CDLISParser::Parse(const char *file_name)
 
 bool CDLISParser::Initialize()
 {
-   memset(&m_file_chunk, 0, sizeof(m_file_chunk)); 
-   return true;
+    memset(&m_file_chunk, 0, sizeof(m_file_chunk)); 
+
+    m_pull_strings = m_allocator.PullICreate(32 * 1024);
+    if (m_pull_strings == 0)
+        return false;
+
+    m_pull_objects = m_allocator.PullICreate(128 * 1024);
+    if (m_pull_objects == 0)
+        return false;
+
+    return true;
 }
 
 
@@ -146,6 +154,8 @@ void CDLISParser::Shutdown()
 
     m_file_chunk.Free();
     memset(&m_file_chunk, 0, sizeof(m_file_chunk));
+
+    m_allocator.PullFreeAll();
 }
 
 
@@ -907,6 +917,46 @@ bool CDLISParser::ReadAttribute()
     return true;
 }
 
+
+void CDLISParser::SetAdd(DlisSet *set)
+{
+    if (!m_sets)
+        m_sets = set;
+    else
+    {
+        DlisSet *next;
+
+        next = m_sets;
+        while (next)
+        {
+            if (!next->next)
+            {
+                next->next = set;
+                break;
+            }
+            next = next->next;
+        }
+    }
+
+    m_set_current = set;
+}
+
+
+void CDLISParser::ObjectAdd(DlisObject *obj)
+{
+    DlisObject **next;
+
+    next = &m_object_current;
+    while (*next)
+    {
+        next = &(*next)->next;
+    }
+
+    *next            = obj;
+    m_object_current = obj;
+}
+
+
 /*
 * читаем объект
 */
@@ -946,16 +996,23 @@ bool CDLISParser::ReadObject()
 */
 bool CDLISParser::ReadSet()
 {
-    char   *val;
-    size_t  len;
+    char       *val;
+    size_t      len;
+    DlisSet    *set;
 
-    m_state = STATE_PARSER_SET;
 
+    m_state                     = STATE_PARSER_SET;
     m_object_num                = 0;
-
     m_attributes_count          = 0;
     m_template_attributes_count = 0; 
     memset(&m_template_attributes, 0, sizeof(m_template_attributes));
+
+    set = (DlisSet *)m_allocator.MemoryGet(m_pull_objects, sizeof(DlisSet));
+    if (!set)
+        return false;
+
+    SetAdd(set);
+
 
     if (g_global_log->IsPrintMode())
     {
@@ -966,6 +1023,12 @@ bool CDLISParser::ReadSet()
     if (m_component_header.format & TypeSet::TypeSetType)
     {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
+        
+        set->type = m_allocator.MemoryGet(m_pull_strings, len + 1);
+        if (!set->type)
+            return false;
+        
+        strcpy_s(set->type, len + 1, val);
 
         if (g_global_log->IsPrintMode())
         {
@@ -977,8 +1040,15 @@ bool CDLISParser::ReadSet()
     }
 
     if (m_component_header.format & TypeSet::TypeSetName)
+    {
         ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
 
+        set->name = m_allocator.MemoryGet(m_pull_strings, len + 1);
+        if (!set->name)
+            return false;
+        
+        strcpy_s(set->name, len + 1, val);
+    }
     return true;
 }
 

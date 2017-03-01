@@ -13,7 +13,7 @@ CDLISAllocator::~CDLISAllocator()
 }
 
 
-size_t CDLISAllocator::PullInitialize(size_t max_size)
+size_t CDLISAllocator::PullICreate(size_t max_size)
 {
     PullBase *pull;
 
@@ -23,26 +23,26 @@ size_t CDLISAllocator::PullInitialize(size_t max_size)
 
     pull->id     = m_pull_id + 1;
     pull->next   = NULL;
-    pull->memory = NULL;
+    pull->chunks = NULL;
     
-    pull->memory = new(std::nothrow) PullMemory;
-    if (!pull->memory)
+    pull->chunks = new(std::nothrow) PullChunk;
+    if (!pull->chunks)
     {
         delete pull;
         return 0;
     }
 
-    pull->memory->data = new(std::nothrow) char[max_size];
-    if (!pull->memory->data)
+    pull->chunks->data = new(std::nothrow) char[max_size];
+    if (!pull->chunks->data)
     {
-        delete pull->memory;
+        delete pull->chunks;
         delete pull;
         return 0;
     }
 
-    pull->memory->len      = 0;
-    pull->memory->max_size = max_size;
-    pull->memory->next     = NULL;
+    pull->chunks->len      = 0;
+    pull->chunks->max_size = max_size;
+    pull->chunks->next     = NULL;
     
     PullBase **next;
     // ищем свободный пул
@@ -58,27 +58,6 @@ size_t CDLISAllocator::PullInitialize(size_t max_size)
     m_pull_id++;
     // возвращаем pull id созданного пула
     return pull->id;
-}
-
-
-char *CDLISAllocator::PullGet(UINT pull_id, size_t size)
-{
-    PullBase *pull;
-    
-    pull = m_pulls;
-    while (pull)
-    {
-        if (pull->id == pull_id)
-        {
-            char *ptr;
-
-            ptr = PullMemoryGet(pull, size);
-            return ptr;
-        }
-        pull = pull->next;
-    }
-
-    return NULL;
 }
 
 
@@ -126,9 +105,9 @@ void CDLISAllocator::PullFreeAll()
 
 void CDLISAllocator::PullRelease(PullBase *pull)
 {
-    PullMemory *memory, *next;
+    PullChunk *memory, *next;
 
-    memory = pull->memory;
+    memory = pull->chunks;
     while (memory)
     {
         next = memory->next;
@@ -143,11 +122,32 @@ void CDLISAllocator::PullRelease(PullBase *pull)
 }
 
 
-char *CDLISAllocator::PullMemoryGet(PullBase *pull, size_t size)
+char *CDLISAllocator::MemoryGet(size_t pull_id, size_t size)
 {
-    PullMemory **curr, *memory;
+    PullBase *pull;
+    
+    pull = m_pulls;
+    while (pull)
+    {
+        if (pull->id == pull_id)
+        {
+            char *ptr;
 
-    curr = &(pull->memory);
+            ptr = MemoryChunkGet(pull, size);
+            return ptr;
+        }
+        pull = pull->next;
+    }
+
+    return NULL;
+}
+
+
+char *CDLISAllocator::MemoryChunkGet(PullBase *pull, size_t size)
+{
+    PullChunk **curr, *memory;
+
+    curr = &(pull->chunks);
 
     while (*curr)
     {
@@ -164,11 +164,11 @@ char *CDLISAllocator::PullMemoryGet(PullBase *pull, size_t size)
         memory = memory->next;
     }
    
-    memory = new(std::nothrow) PullMemory;
+    memory = new(std::nothrow) PullChunk;
     if (!memory)
         return NULL;
     
-    memory->data = new(std::nothrow) char[pull->memory->max_size];
+    memory->data = new(std::nothrow) char[pull->chunks->max_size];
     if (!memory->data)
     {
         delete memory;
@@ -176,7 +176,7 @@ char *CDLISAllocator::PullMemoryGet(PullBase *pull, size_t size)
     }
 
     memory->len      = 0;
-    memory->max_size = pull->memory->max_size;
+    memory->max_size = pull->chunks->max_size;
     memory->next     = NULL;
 
     *curr = memory;

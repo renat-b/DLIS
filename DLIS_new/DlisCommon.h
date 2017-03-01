@@ -48,18 +48,18 @@ struct ComponentHeader
 enum TypeRole
 {
     // атрибут
-    Absent_Attribute    = 0x0,     //  000     ABSATR     Absent Attribute
-    Attribute           = 0x1,     //  001     ATTRIB     Attribute
-    Invariant_Attribute = 0x2,     //  010     INVATR     Invariant Attribute
+    Absent_Attribute    = 0x0,         //  000     ABSATR     Absent Attribute
+    Attribute           = 0x1,         //  001     ATTRIB     Attribute
+    Invariant_Attribute = 0x2,         //  010     INVATR     Invariant Attribute
     // объект
-    Object              = 0x3,     //  011     OBJECT     Object
+    Object              = 0x3,         //  011     OBJECT     Object
 
     //100 	reserved -
 
     // set
-    Redundant_Set       = 0x5,     //  101 	   RDSET 	  Redundant Set
-    Replacement_Set     = 0x6,     //  110 	   RSET 	  Replacement Set
-    Set                 = 0x7,     //  111 	   SET 	      Set
+    Redundant_Set       = 0x5,         //  101 	   RDSET 	  Redundant Set
+    Replacement_Set     = 0x6,         //  110 	   RSET 	  Replacement Set
+    Set                 = 0x7,         //  111 	   SET 	      Set
 };
 
 
@@ -150,20 +150,62 @@ enum EFLRType
     LAST_Public_EFLR_Code = DICT,
 };
 
-
+// содержимое DLIS
 struct DlisValue
 {
+    // данные и ихний размер
     char            *data;
     short            size;
+    // следующее значение
     DlisValue       *next;
 };
 
 
 struct DlisAttribute
 {
+    // название колонки
     char           *label;
+    // колво данных
     UINT            count;
+    // тип значения
     RepresentaionCodes  code;
+    // единца измерения
     UINT            units;
+    // значения
     DlisValue      *value;
+};
+
+// строка в DLIS объекте
+struct DlisRowAttribute 
+{
+    // количество колонок в строке
+    UINT                  count;
+    DlisAttribute        *attributes;
+    // следующий элемент
+    DlisRowAttribute     *next;
+};
+
+
+struct DlisObject
+{
+    // имя объекта
+    char                 *name;
+    // название колонок и данные
+    size_t                count;
+    DlisAttribute        *colums;
+    DlisRowAttribute     *rows;
+    // следующий объект
+    DlisObject           *next;
+};
+
+
+struct DlisSet
+{
+    char            *name;
+    char            *type;
+    //
+    size_t           count;
+    DlisObject      *objects;
+
+    DlisSet         *next;
 };

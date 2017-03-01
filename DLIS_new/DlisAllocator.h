@@ -5,18 +5,18 @@
 class CDLISAllocator
 {
 private:
-    struct PullMemory
+    struct PullChunk
     {
-        char        *data;
-        size_t       len;
-        size_t       max_size;
-        PullMemory  *next;
+        char          *data;
+        size_t         len;
+        size_t         max_size;
+        PullChunk     *next;
     };
 
     struct PullBase
     {
         size_t         id;
-        PullMemory    *memory;
+        PullChunk     *chunks;
         PullBase      *next;
     };
 
@@ -30,13 +30,13 @@ public:
     ~CDLISAllocator();
 
     //
-    size_t         PullInitialize(size_t  max_size);
-    char          *PullGet (UINT pull_id, size_t size);
+    size_t         PullICreate(size_t  max_size);
     void           PullFree(UINT pull_id);
     void           PullRelease(PullBase *pull);
     void           PullFreeAll();
-    
+
+    char          *MemoryGet (size_t pull_id, size_t size);   
 
 private:
-    char          *PullMemoryGet(PullBase *pull, size_t size);
+    char          *MemoryChunkGet(PullBase *pull, size_t size);
 };

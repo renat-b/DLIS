@@ -3,6 +3,7 @@
 #include    "new.h"
 #include    "DlisCommon.h"
 #include    "FileBin.h"
+#include    "DlisAllocator.h"
 
 // глобальный объект лога (для отладки)
 extern CFileBin *g_global_log;
@@ -98,6 +99,17 @@ private:
     UINT               m_attributes_count;
     UINT               m_object_num;
 
+    DlisSet           *m_sets;
+    DlisSet           *m_set_current;
+    DlisObject        *m_object_current;
+
+
+    CDLISAllocator     m_allocator;
+    size_t             m_pull_strings;
+    size_t             m_pull_objects;
+    
+
+
 private:
    static RepresentaionCodesLenght s_rep_codes_length[RC_LAST];
  
@@ -152,6 +164,9 @@ private:
     bool            ReadObject();
     bool            ReadAttribute();
 
+
+    void            SetAdd(DlisSet *set);
+    void            ObjectAdd(DlisObject *obj);
     // распечатка code representation
     void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size);
     void            DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t size);
