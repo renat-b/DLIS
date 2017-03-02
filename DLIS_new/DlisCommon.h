@@ -154,35 +154,27 @@ enum EFLRType
 struct DlisValue
 {
     // данные и ихний размер
-    char            *data;
-    short            size;
+    char              *data;
+    short              size;
     // следующее значение
-    DlisValue       *next;
+    DlisValue         *next;
 };
 
 
 struct DlisAttribute
 {
     // название колонки
-    char           *label;
+    char               *label;
     // колво данных
-    UINT            count;
+    UINT                count;
     // тип значения
     RepresentaionCodes  code;
     // единца измерения
-    UINT            units;
+    UINT                units;
     // значения
-    DlisValue      *value;
-};
+    DlisValue          *value;
 
-// строка в DLIS объекте
-struct DlisRowAttribute 
-{
-    // количество колонок в строке
-    UINT                  count;
-    DlisAttribute        *attributes;
-    // следующий элемент
-    DlisRowAttribute     *next;
+    DlisAttribute      *next;
 };
 
 
@@ -193,7 +185,8 @@ struct DlisObject
     // название колонок и данные
     size_t                count;
     DlisAttribute        *colums;
-    DlisRowAttribute     *rows;
+    DlisAttribute        *attr;
+
     // следующий объект
     DlisObject           *next;
 };
@@ -208,4 +201,27 @@ struct DlisSet
     DlisObject      *objects;
 
     DlisSet         *next;
+};
+
+
+struct DlisValueObjName
+{
+    char            *origin_reference;
+    size_t           copy_number;
+    char            *identifier;
+};
+
+
+struct DlisValueObjRef
+{
+    char              *object_type;
+    DlisValueObjName   object_name;
+};
+
+
+struct DlisValueAttRef
+{
+    char               *object_type;
+    DlisValueObjName    object_name;
+    char               *attribute_label;    
 };

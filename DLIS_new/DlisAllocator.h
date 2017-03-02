@@ -30,7 +30,7 @@ public:
     ~CDLISAllocator();
 
     //
-    size_t         PullICreate(size_t  max_size);
+    size_t         PullCreate(size_t  max_size);
     void           PullFree(UINT pull_id);
     void           PullRelease(PullBase *pull);
     void           PullFreeAll();

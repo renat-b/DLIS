@@ -87,7 +87,8 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] =
 
 
 CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), m_template_attributes_count(0), 
-    m_attributes_count(0), m_sets(NULL), m_set_current(NULL), m_object_current(NULL)
+    m_attributes_count(0), m_sets(NULL), m_set(NULL), m_object(NULL), m_attribute(NULL), m_column(NULL),
+    m_last_set(NULL), m_last_object(NULL), m_last_column(NULL), m_last_attribute(NULL)
 {
     m_object_num = 0;
 
@@ -136,13 +137,15 @@ bool CDLISParser::Initialize()
 {
     memset(&m_file_chunk, 0, sizeof(m_file_chunk)); 
 
-    m_pull_strings = m_allocator.PullICreate(32 * 1024);
-    if (m_pull_strings == 0)
+    m_pull_id_strings = m_allocator.PullCreate(32 * 1024);
+    if (m_pull_id_strings == 0)
         return false;
 
-    m_pull_objects = m_allocator.PullICreate(128 * 1024);
-    if (m_pull_objects == 0)
+    m_pull_id_objects = m_allocator.PullCreate(128 * 1024);
+    if (m_pull_id_objects == 0)
         return false;
+
+    m_set = &m_sets;
 
     return true;
 }
@@ -672,7 +675,7 @@ bool CDLISParser::ReadRawData(void *dst, size_t len)
 /*
 * вычитываем данные по representation code
 */
-bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, size_t *len, int count /*= 1*/)
+bool CDLISParser::ReadCodeSimple(RepresentaionCodes code, void **dst, size_t *len, int count /*= 1*/)
 {
     // резервируем данные для быстрого доступа 8 килобайт
     static byte buf[8 * Kb] = { 0 };
@@ -699,7 +702,7 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
     if (count > 1)
     {
         for (int i = 0; i < count; i++)
-            ReadRepresentationCode(code, dst, len, 1);
+            ReadCodeSimple(code, dst, len, 1);
 
         return true;
     }
@@ -717,9 +720,9 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
                 UINT      str_len = 0;
                 // в зависимости от code сначала читаем размер данных        
                 if (code == RC_ASCII)
-                    ReadRepresentationCode(RC_UVARI,  &ptr, &count);
+                    ReadCodeSimple(RC_UVARI,  &ptr, &count);
                 else
-                    ReadRepresentationCode(RC_USHORT, &ptr, &count);
+                    ReadCodeSimple(RC_USHORT, &ptr, &count);
 
                 // получаем размер данных в байтах
                 assert(count <= sizeof(str_len));
@@ -771,29 +774,97 @@ bool CDLISParser::ReadRepresentationCode(RepresentaionCodes code, void **dst, si
 
         case RC_OBNAME:
             {
-                ReadRepresentationCode(RC_ORIGIN, dst, len);
-                ReadRepresentationCode(RC_USHORT, dst, len);
-                ReadRepresentationCode(RC_IDENT,  dst, len);
+                ReadCodeSimple(RC_ORIGIN, dst, len);
+                ReadCodeSimple(RC_USHORT, dst, len);
+                ReadCodeSimple(RC_IDENT,  dst, len);
             }
             break;
 
         case RC_OBJREF:
             {
-                ReadRepresentationCode(RC_IDENT,  dst, len);
-                ReadRepresentationCode(RC_OBNAME, dst, len);
+                ReadCodeSimple(RC_IDENT,  dst, len);
+                ReadCodeSimple(RC_OBNAME, dst, len);
             }
             break;
 
         case RC_ATTREF:
             {
-                ReadRepresentationCode(RC_IDENT,  dst, len);
-                ReadRepresentationCode(RC_OBNAME, dst, len);
-                ReadRepresentationCode(RC_IDENT,  dst, len);
+                ReadCodeSimple(RC_IDENT,  dst, len);
+                ReadCodeSimple(RC_OBNAME, dst, len);
+                ReadCodeSimple(RC_IDENT,  dst, len);
             }
             break;
 
         default:
             assert(false);
+            break;
+    }
+
+    return true;
+}
+
+/*
+* 
+*/
+bool CDLISParser::ReadCodeComplex(RepresentaionCodes code, void *dst)
+{
+    char    *src;
+    size_t   len;
+
+    switch (code)
+    {
+        case RC_OBNAME:
+            {
+                DlisValueObjName  *value;
+
+                value = (DlisValueObjName *)dst;
+
+                ReadCodeSimple(RC_ORIGIN, (void **)&src, &len);
+                value->origin_reference = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+                strcpy_s(value->origin_reference, len + 1, src);
+
+                ReadCodeSimple(RC_USHORT, (void **)&src, &len);
+                memcpy(&value->copy_number, src, len); 
+
+                ReadCodeSimple(RC_IDENT,  (void **)&src, &len);
+                value->identifier = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+                strcpy_s(value->identifier, len + 1, src);
+            }
+            break;
+
+        case RC_OBJREF:
+            {
+                DlisValueObjRef  *value;
+
+                value = (DlisValueObjRef *)dst;
+
+                ReadCodeSimple(RC_IDENT,  (void **)&src, &len);
+                value->object_type = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+                strcpy_s(value->object_type, len + 1, src);
+
+                ReadCodeComplex(RC_OBNAME, (void **)&value->object_name);
+            }
+            break;
+
+        case RC_ATTREF:
+            {
+                DlisValueAttRef *value;
+                
+                value = (DlisValueAttRef *)dst;
+
+                ReadCodeSimple(RC_IDENT, (void **)&src, &len);
+                value->object_type = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+                strcpy_s(value->object_type, len + 1, src);
+                
+                ReadCodeComplex(RC_OBNAME,(void **)&value->object_name);
+
+                ReadCodeSimple(RC_IDENT, (void **)&src, &len);
+                value->attribute_label = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+                strcpy_s(value->attribute_label, len + 1, src);
+            }
+            break;
+
+        default:
             break;
     }
 
@@ -829,7 +900,7 @@ bool CDLISParser::ReadAttribute()
     // последовательно читаем свойства атрибута
     if (m_component_header.format & TypeAttribute::TypeAttrLable)
     {
-        ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
+        ReadCodeSimple(RC_IDENT, (void **)&val, &len);
         if (g_global_log->IsPrintMode())
         {
             char str[128];
@@ -841,7 +912,7 @@ bool CDLISParser::ReadAttribute()
 
     if (m_component_header.format & TypeAttribute::TypeAttrCount)
     {
-        ReadRepresentationCode(RC_UVARI, (void **)&val, &len);
+        ReadCodeSimple(RC_UVARI, (void **)&val, &len);
         
         assert(len <= sizeof(count));
         count = 0;
@@ -853,7 +924,7 @@ bool CDLISParser::ReadAttribute()
 
     if (m_component_header.format & TypeAttribute::TypeAttrRepresentationCode)
     {
-        ReadRepresentationCode(RC_USHORT, (void **)&val, &len);
+        ReadCodeSimple(RC_USHORT, (void **)&val, &len);
         
         assert(len <= sizeof(rep_code));
         memset(&rep_code, 0 , sizeof(rep_code));
@@ -876,7 +947,7 @@ bool CDLISParser::ReadAttribute()
 
     if (m_component_header.format & TypeAttribute::TypeAttrUnits)
     {
-        ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
+        ReadCodeSimple(RC_IDENT, (void **)&val, &len);
 
         if (g_global_log->IsPrintMode())
             printf("    Unit: %s\n", val);
@@ -885,7 +956,7 @@ bool CDLISParser::ReadAttribute()
 
     if (m_component_header.format & TypeAttribute::TypeAttrValue)
     {
-        ReadRepresentationCode(rep_code, (void **)&val, &len, count);
+        ReadCodeSimple(rep_code, (void **)&val, &len, count);
 
         if (g_global_log->IsPrintMode())
         {
@@ -920,50 +991,45 @@ bool CDLISParser::ReadAttribute()
 
 void CDLISParser::SetAdd(DlisSet *set)
 {
-    if (!m_sets)
-        m_sets = set;
-    else
-    {
-        DlisSet *next;
+    *m_set   = set;
 
-        next = m_sets;
-        while (next)
-        {
-            if (!next->next)
-            {
-                next->next = set;
-                break;
-            }
-            next = next->next;
-        }
-    }
-
-    m_set_current = set;
+    m_object = &(set->objects);
+    m_set    = &(*m_set)->next;
 }
 
 
 void CDLISParser::ObjectAdd(DlisObject *obj)
 {
-    DlisObject **next;
+    *m_object   = obj;
 
-    next = &m_object_current;
-    while (*next)
-    {
-        next = &(*next)->next;
-    }
-
-    *next            = obj;
-    m_object_current = obj;
+    m_attribute = &(obj->attr);
+    m_column    = &(obj->colums);
+    m_object    = &(*m_object)->next;
 }
 
+
+void CDLISParser::ColumnAdd(DlisAttribute *column)
+{
+    *m_column = column;
+
+    m_column  = &(*m_column)->next;
+}
+
+
+void CDLISParser::AttributeAdd(DlisAttribute *attribute)
+{
+    *m_attribute = attribute;
+
+    m_attribute  = &(*m_attribute)->next;
+}
 
 /*
 * читаем объект
 */
 bool CDLISParser::ReadObject()
 {
-    char   *val;
-    size_t  len;
+    char    *val;
+    size_t   len;
 
     if (g_global_log->IsPrintMode())
     {
@@ -973,11 +1039,16 @@ bool CDLISParser::ReadObject()
 
     m_state = STATE_PARSER_OBJECT; 
     
+    m_last_object = (DlisObject *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisObject));
+    memset(m_last_object, 0, sizeof(DlisObject));
+
+    ObjectAdd(m_last_object);
+
     m_attributes_count = 0;
 
     if (m_component_header.format & TypeObject::TypeObjectName)
     {
-        ReadRepresentationCode(RC_OBNAME, (void**)&val, &len);
+        ReadCodeSimple(RC_OBNAME, (void**)&val, &len);
 
         if (g_global_log->IsPrintMode())
         {
@@ -998,8 +1069,6 @@ bool CDLISParser::ReadSet()
 {
     char       *val;
     size_t      len;
-    DlisSet    *set;
-
 
     m_state                     = STATE_PARSER_SET;
     m_object_num                = 0;
@@ -1007,12 +1076,12 @@ bool CDLISParser::ReadSet()
     m_template_attributes_count = 0; 
     memset(&m_template_attributes, 0, sizeof(m_template_attributes));
 
-    set = (DlisSet *)m_allocator.MemoryGet(m_pull_objects, sizeof(DlisSet));
-    if (!set)
+    m_last_set = (DlisSet *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisSet));
+    if (!m_last_set)
         return false;
 
-    SetAdd(set);
-
+    memset(m_last_set, 0, sizeof(DlisSet));
+    SetAdd(m_last_set);
 
     if (g_global_log->IsPrintMode())
     {
@@ -1022,13 +1091,13 @@ bool CDLISParser::ReadSet()
 
     if (m_component_header.format & TypeSet::TypeSetType)
     {
-        ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
+        ReadCodeSimple(RC_IDENT, (void **)&val, &len);
         
-        set->type = m_allocator.MemoryGet(m_pull_strings, len + 1);
-        if (!set->type)
+        m_last_set->type = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+        if (!m_last_set->type)
             return false;
         
-        strcpy_s(set->type, len + 1, val);
+        strcpy_s(m_last_set->type, len + 1, val);
 
         if (g_global_log->IsPrintMode())
         {
@@ -1041,13 +1110,13 @@ bool CDLISParser::ReadSet()
 
     if (m_component_header.format & TypeSet::TypeSetName)
     {
-        ReadRepresentationCode(RC_IDENT, (void **)&val, &len);
+        ReadCodeSimple(RC_IDENT, (void **)&val, &len);
 
-        set->name = m_allocator.MemoryGet(m_pull_strings, len + 1);
-        if (!set->name)
+        m_last_set->name = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+        if (!m_last_set->name)
             return false;
         
-        strcpy_s(set->name, len + 1, val);
+        strcpy_s(m_last_set->name, len + 1, val);
     }
     return true;
 }

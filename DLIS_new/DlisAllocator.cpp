@@ -1,6 +1,7 @@
 #include "DlisAllocator.h"
 #include "new.h"
 
+
 CDLISAllocator::CDLISAllocator() : m_pull_id(0), m_pulls(NULL)
 {
 
@@ -13,7 +14,7 @@ CDLISAllocator::~CDLISAllocator()
 }
 
 
-size_t CDLISAllocator::PullICreate(size_t max_size)
+size_t CDLISAllocator::PullCreate(size_t max_size)
 {
     PullBase *pull;
 
@@ -85,7 +86,6 @@ void CDLISAllocator::PullFree(UINT pull_id)
     {
         PullRelease(pull);
     }
-
 }
 
 
@@ -148,7 +148,6 @@ char *CDLISAllocator::MemoryChunkGet(PullBase *pull, size_t size)
     PullChunk **curr, *memory;
 
     curr = &(pull->chunks);
-
     while (*curr)
     {
         memory = *curr;
