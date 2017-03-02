@@ -178,32 +178,6 @@ struct DlisAttribute
 };
 
 
-struct DlisObject
-{
-    // имя объекта
-    char                 *name;
-    // название колонок и данные
-    size_t                count;
-    DlisAttribute        *colums;
-    DlisAttribute        *attr;
-
-    // следующий объект
-    DlisObject           *next;
-};
-
-
-struct DlisSet
-{
-    char            *name;
-    char            *type;
-    //
-    size_t           count;
-    DlisObject      *objects;
-
-    DlisSet         *next;
-};
-
-
 struct DlisValueObjName
 {
     char            *origin_reference;
@@ -224,4 +198,30 @@ struct DlisValueAttRef
     char               *object_type;
     DlisValueObjName    object_name;
     char               *attribute_label;    
+};
+
+
+struct DlisObject
+{
+    // 
+    DlisValueObjName      name;
+    // название колонок и данные
+    size_t                count;
+    DlisAttribute        *colums;
+    DlisAttribute        *attr;
+
+    // следующий объект
+    DlisObject           *next;
+};
+
+
+struct DlisSet
+{
+    char            *name;
+    char            *type;
+    //
+    size_t           count;
+    DlisObject      *objects;
+
+    DlisSet         *next;
 };
