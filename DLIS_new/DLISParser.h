@@ -37,6 +37,9 @@ private:
         STATE_PARSER_OBJECT       = 0x02,
         STATE_PARSER_TEMPLATE_ATTRIBUTE = 0x04,
         STATE_PARSER_ATTRIBUTE    = 0x08, 
+        //
+        REP_CODE_VARIABLE_SIMPLE  = -1,
+        REP_CODE_VARIABLE_COMPLEX = -2,
     };
     
     struct TemplateAttributes
@@ -173,11 +176,14 @@ private:
     bool            ReadObject();
     bool            ReadAttribute();
 
+    bool            ReadAttributeValue(DlisValue *attr_val, RepresentaionCodes code, int type);
+
     void            SetAdd(DlisSet *set);
     void            ObjectAdd(DlisObject *obj);
     void            ColumnAdd(DlisAttribute *obj);
     void            AttributeAdd(DlisAttribute *obj);
 
+    DlisAttribute  *AttrRepresentationCodeFind(DlisObject *object, DlisAttribute *attr);
     // распечатка code representation
     void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size);
     void            DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t size);

@@ -129,6 +129,7 @@ enum RepresentaionCodes
     RC_STATUS = 26,                         // 1 	Boolean status
     RC_UNITS  = 27,                         // 
     RC_LAST   = RC_UNITS,
+    RC_UNDEFINED = RC_LAST + 1,
 };
 
 
@@ -155,9 +156,6 @@ struct DlisValue
 {
     // данные и ихний размер
     char              *data;
-    short              size;
-    // следующее значение
-    DlisValue         *next;
 };
 
 
@@ -166,11 +164,11 @@ struct DlisAttribute
     // название колонки
     char               *label;
     // колво данных
-    UINT                count;
+    size_t              count;
     // тип значения
     RepresentaionCodes  code;
     // единца измерения
-    UINT                units;
+    char               *units;
     // значения
     DlisValue          *value;
 
