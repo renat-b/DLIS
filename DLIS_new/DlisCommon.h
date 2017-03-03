@@ -178,9 +178,9 @@ struct DlisAttribute
 
 struct DlisValueObjName
 {
-    char            *origin_reference;
-    size_t           copy_number;
-    char            *identifier;
+    unsigned int       origin_reference;
+    unsigned int       copy_number;
+    char              *identifier;
 };
 
 
@@ -204,10 +204,7 @@ struct DlisObject
     // 
     DlisValueObjName      name;
     // название колонок и данные
-    size_t                count;
-    DlisAttribute        *colums;
     DlisAttribute        *attr;
-
     // следующий объект
     DlisObject           *next;
 };
@@ -218,6 +215,7 @@ struct DlisSet
     char            *name;
     char            *type;
     //
+    DlisAttribute   *colums;
     size_t           count;
     DlisObject      *objects;
 

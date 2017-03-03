@@ -8,7 +8,7 @@ int main()
     g_global_log = new CFileBin;
 
     g_global_log->SetTestCompareFilesMode(false);
-    g_global_log->SetPrintMode(true);
+    g_global_log->SetPrintMode(false);
 
     if (g_global_log->IsCompareFilesMode())
         if (!g_global_log->OpenRead("../Dlis_examples/Sample2.dat"))
@@ -17,6 +17,7 @@ int main()
 
     CDLISParser  parser;
 
+    parser.Initialize();
     parser.Parse("../Dlis_examples/Sample2.dlis");
     parser.Shutdown();
 

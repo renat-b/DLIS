@@ -183,7 +183,7 @@ private:
     void            ColumnAdd(DlisAttribute *obj);
     void            AttributeAdd(DlisAttribute *obj);
 
-    DlisAttribute  *AttrRepresentationCodeFind(DlisObject *object, DlisAttribute *attr);
+    DlisAttribute  *AttrRepresentationCodeFind(DlisSet *set, DlisObject *object, DlisAttribute *attr);
     // распечатка code representation
     void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size);
     void            DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t size);
