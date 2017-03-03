@@ -468,13 +468,13 @@ bool CDLISParser::SegmentProcess()
         // первый сегмент в логическом файле 
         if (m_segment_header.type == FHLR)
         {
+            // продолжение сегмента (второй и тд сегмент) в списке сегментов
+            if ( !(m_segment_header.attributes & Successor))
+            {
+                m_state |= STATE_FIRST_SEGMEN_LOGICAL_FILE;
+            }
         }
 
-        // продолжение сегмента (второй и тд сегмент) в списке сегментов
-        if (m_segment_header.attributes & Successor)
-        {
-        }
-        
 
         // последовательно вычитываем компоненты
         r = ComponentRead();
@@ -842,103 +842,6 @@ bool CDLISParser::ReadCodeComplex(RepresentaionCodes code, void *dst)
     return true;
 }
 
-/*
-* читаем атрибут объекта или шаблона (template)
-*/
-bool CDLISParser::ReadAttribute()
-{
-    char      *val;
-    size_t     len;
-    UINT       count            = 1;
-    RepresentaionCodes rep_code = RC_IDENT;
-
-    // если первый атрибут, определим это атрибут объекта или шаблона
-    if (m_state == STATE_PARSER_SET)
-    {
-        m_state = STATE_PARSER_TEMPLATE_ATTRIBUTE;
-    }
-    if (m_state == STATE_PARSER_OBJECT)
-    {
-        m_state = STATE_PARSER_ATTRIBUTE;
-    }
-
-
-    DlisAttribute *attr;
-    
-    attr = (DlisAttribute *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisAttribute));
-    memset(attr, 0, sizeof(DlisAttribute));
-    attr->count = 1;
-
-    if (m_state == STATE_PARSER_TEMPLATE_ATTRIBUTE)
-        ColumnAdd(attr);
-    else
-        AttributeAdd(attr);
-
-    // последовательно читаем свойства атрибута
-    if (m_component_header.format & TypeAttribute::TypeAttrLable)
-    {
-        ReadCodeSimple(RC_IDENT, (void **)&val, &len);
-        attr->label = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
-        strcpy_s(attr->label, len + 1, val);
-    }
-
-    if (m_component_header.format & TypeAttribute::TypeAttrCount)
-    {
-        ReadCodeSimple(RC_UVARI, (void **)&val, &len);
-        memcpy(&attr->count, val, len);
-    }
-
-    if (m_component_header.format & TypeAttribute::TypeAttrRepresentationCode)
-    {
-        ReadCodeSimple(RC_USHORT, (void **)&val, &len);
-        memcpy(&attr->code, val, len);
-    }
-    else
-    {
-        if (m_state == STATE_PARSER_ATTRIBUTE)
-        {
-            DlisAttribute *column;
-
-            column = AttrRepresentationCodeFind(m_last_set, m_last_object, attr);
-            if (column)
-                attr->code = column->code;
-            else
-                attr->code = RC_UNDEFINED;
-        }
-        else
-        {
-                attr->code = RC_ASCII;
-        }
-    } 
-    
-    if (m_component_header.format & TypeAttribute::TypeAttrUnits)
-    {
-        ReadCodeSimple(RC_IDENT, (void **)&val, &len);
-
-        attr->units = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
-        strcpy_s(attr->units, len + 1, val);
-    }
-
-    if (m_component_header.format & TypeAttribute::TypeAttrValue)
-    {
-        int        type;
-        DlisValue *attr_val;
-
-        attr->value = (DlisValue *)m_allocator.MemoryGet(m_pull_id_strings, attr->count * sizeof(DlisValue));
-        memset(attr->value, 0, sizeof(DlisValue));
-
-        type        = s_rep_codes_length[attr->code - 1].length;
-        attr_val    = attr->value;
-
-        for (size_t i = 0; i < attr->count; i++)
-        {
-            ReadAttributeValue(attr_val, attr->code, type);
-            attr_val++;
-        }
-    }
-
-    return true;
-}
 
 
 bool CDLISParser::ReadAttributeValue(DlisValue *attr_val, RepresentaionCodes code, int type)
@@ -1000,11 +903,37 @@ bool CDLISParser::ReadAttributeValue(DlisValue *attr_val, RepresentaionCodes cod
 
 void CDLISParser::SetAdd(DlisSet *set)
 {
-    *m_set   = set;
+    // первый сегмент в логическом файле, создаем новый логический файл, смещаемся по childs 
+    if (m_state & STATE_FIRST_SEGMEN_LOGICAL_FILE)
+    {
+        m_set = &m_sets;
+        
+        while (*m_set)
+        {
+            m_set = &(*m_set)->next;
+        }
+
+        m_state &= ~STATE_FIRST_SEGMEN_LOGICAL_FILE;
+        m_state |= STATE_SECOND_SEGMENT_LOGICAL_FILE;
+
+        *m_set   = set;
+        m_set    = &(*m_set)->childs;
+    }
+    else if (m_state & STATE_SECOND_SEGMENT_LOGICAL_FILE)
+    {
+        *m_set  = set;
+
+        m_state &= ~STATE_SECOND_SEGMENT_LOGICAL_FILE;
+        m_set    = &(*m_set)->next;
+    }
+    else
+    {
+        *m_set = set;
+        m_set  = &(*m_set)->next;
+    }
 
     m_column = &(set->colums);
     m_object = &(set->objects);
-    m_set    = &(*m_set)->next;
 }
 
 
@@ -1053,26 +982,6 @@ DlisAttribute *CDLISParser::AttrRepresentationCodeFind(DlisSet *set, DlisObject 
 }
 
 /*
-* читаем объект
-*/
-bool CDLISParser::ReadObject()
-{
-    m_state = STATE_PARSER_OBJECT; 
-    
-    m_last_object = (DlisObject *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisObject));
-    memset(m_last_object, 0, sizeof(DlisObject));
-
-    ObjectAdd(m_last_object);
-
-    if (m_component_header.format & TypeObject::TypeObjectName)
-    {
-        ReadCodeComplex(RC_OBNAME, (void **)&m_last_object->name);
-    }
-
-    return true;
-}
-
-/*
 *  читаем Set
 */
 bool CDLISParser::ReadSet()
@@ -1080,10 +989,12 @@ bool CDLISParser::ReadSet()
     char       *val;
     size_t      len;
 
-    m_state                     = STATE_PARSER_SET;
-    m_object_num                = 0;
-    m_attributes_count          = 0;
-    m_template_attributes_count = 0; 
+    m_state                    &= ~(STATE_PARSER_TEMPLATE_ATTRIBUTE | STATE_PARSER_ATTRIBUTE | STATE_PARSER_OBJECT);
+    m_state                    |=   STATE_PARSER_SET;
+    m_object_num                =   0;
+    m_attributes_count          =   0;
+    m_template_attributes_count =   0; 
+
     memset(&m_template_attributes, 0, sizeof(m_template_attributes));
 
     m_last_set = (DlisSet *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisSet));
@@ -1117,6 +1028,126 @@ bool CDLISParser::ReadSet()
     return true;
 }
 
+/*
+* читаем объект
+*/
+bool CDLISParser::ReadObject()
+{
+    m_state  &= ~(STATE_PARSER_TEMPLATE_ATTRIBUTE | STATE_PARSER_ATTRIBUTE | STATE_PARSER_SET);
+    m_state  |= STATE_PARSER_OBJECT; 
+    
+    m_last_object = (DlisObject *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisObject));
+    memset(m_last_object, 0, sizeof(DlisObject));
+
+    ObjectAdd(m_last_object);
+
+    if (m_component_header.format & TypeObject::TypeObjectName)
+    {
+        ReadCodeComplex(RC_OBNAME, (void **)&m_last_object->name);
+    }
+
+    return true;
+}
+
+/*
+* читаем атрибут объекта или шаблона (template)
+*/
+bool CDLISParser::ReadAttribute()
+{
+    char      *val;
+    size_t     len;
+    UINT       count            = 1;
+    RepresentaionCodes rep_code = RC_IDENT;
+
+    // если первый атрибут, определим это атрибут объекта или шаблона
+    if (m_state & STATE_PARSER_SET)
+    {
+        m_state &= ~STATE_PARSER_SET;
+        m_state |= STATE_PARSER_TEMPLATE_ATTRIBUTE;
+    }
+    if (m_state & STATE_PARSER_OBJECT)
+    {
+        m_state &= ~STATE_PARSER_OBJECT;
+        m_state |= STATE_PARSER_ATTRIBUTE;
+    }
+
+
+    DlisAttribute *attr;
+    
+    attr = (DlisAttribute *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisAttribute));
+    memset(attr, 0, sizeof(DlisAttribute));
+    attr->count = 1;
+
+    if (m_state & STATE_PARSER_TEMPLATE_ATTRIBUTE)
+        ColumnAdd(attr);
+    else
+        AttributeAdd(attr);
+
+    // последовательно читаем свойства атрибута
+    if (m_component_header.format & TypeAttribute::TypeAttrLable)
+    {
+        ReadCodeSimple(RC_IDENT, (void **)&val, &len);
+        attr->label = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+        strcpy_s(attr->label, len + 1, val);
+    }
+
+    if (m_component_header.format & TypeAttribute::TypeAttrCount)
+    {
+        ReadCodeSimple(RC_UVARI, (void **)&val, &len);
+        memcpy(&attr->count, val, len);
+    }
+
+    if (m_component_header.format & TypeAttribute::TypeAttrRepresentationCode)
+    {
+        ReadCodeSimple(RC_USHORT, (void **)&val, &len);
+        memcpy(&attr->code, val, len);
+    }
+    else
+    {
+        if (m_state & STATE_PARSER_ATTRIBUTE)
+        {
+            DlisAttribute *column;
+
+            column = AttrRepresentationCodeFind(m_last_set, m_last_object, attr);
+            if (column)
+                attr->code = column->code;
+            else
+                attr->code = RC_UNDEFINED;
+        }
+        else
+        {
+                attr->code = RC_ASCII;
+        }
+    } 
+    
+    if (m_component_header.format & TypeAttribute::TypeAttrUnits)
+    {
+        ReadCodeSimple(RC_IDENT, (void **)&val, &len);
+
+        attr->units = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+        strcpy_s(attr->units, len + 1, val);
+    }
+
+    if (m_component_header.format & TypeAttribute::TypeAttrValue)
+    {
+        int        type;
+        DlisValue *attr_val;
+
+        attr->value = (DlisValue *)m_allocator.MemoryGet(m_pull_id_strings, attr->count * sizeof(DlisValue));
+        memset(attr->value, 0, sizeof(DlisValue));
+
+        type        = s_rep_codes_length[attr->code - 1].length;
+        attr_val    = attr->value;
+
+        for (size_t i = 0; i < attr->count; i++)
+        {
+            ReadAttributeValue(attr_val, attr->code, type);
+            attr_val++;
+        }
+    }
+
+    return true;
+}
 /*
 * принтуем код объекта в его строковое описание (для отладки)
 */

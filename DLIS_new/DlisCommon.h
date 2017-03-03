@@ -220,4 +220,5 @@ struct DlisSet
     DlisObject      *objects;
 
     DlisSet         *next;
+    DlisSet         *childs;
 };
