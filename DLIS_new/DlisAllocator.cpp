@@ -180,7 +180,7 @@ char *CDLISAllocator::MemoryChunkGet(PullBase *pull, size_t size)
 
     *curr = memory;
 
-    if (memory->max_size <= size)
+    if (memory->max_size >= size)
     {
         memory->len = size;
         return memory->data;

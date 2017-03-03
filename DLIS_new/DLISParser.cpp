@@ -709,7 +709,6 @@ bool CDLISParser::ReadCodeSimple(RepresentaionCodes code, void **dst, size_t *le
             {
                 size_t    count;
                 void     *ptr;
-                
                 UINT      str_len = 0;
                 // в зависимости от code сначала читаем размер данных        
                 if (code == RC_ASCII)
@@ -786,7 +785,6 @@ bool CDLISParser::ReadCodeComplex(RepresentaionCodes code, void *dst)
         case RC_OBNAME:
             {
                 DlisValueObjName  *value;
-
                 value = (DlisValueObjName *)dst;
 
                 ReadCodeSimple(RC_ORIGIN, (void **)&src, &len);
@@ -797,6 +795,7 @@ bool CDLISParser::ReadCodeComplex(RepresentaionCodes code, void *dst)
 
                 ReadCodeSimple(RC_IDENT, (void **)&src, &len);
                 value->identifier = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+
                 strcpy_s(value->identifier, len + 1, src);
             }
             break;
@@ -804,7 +803,6 @@ bool CDLISParser::ReadCodeComplex(RepresentaionCodes code, void *dst)
         case RC_OBJREF:
             {
                 DlisValueObjRef  *value;
-
                 value = (DlisValueObjRef *)dst;
 
                 ReadCodeSimple(RC_IDENT, (void **)&src, &len);
@@ -817,8 +815,7 @@ bool CDLISParser::ReadCodeComplex(RepresentaionCodes code, void *dst)
 
         case RC_ATTREF:
             {
-                DlisValueAttRef *value;
-                
+                DlisValueAttRef   *value;
                 value = (DlisValueAttRef *)dst;
 
                 ReadCodeSimple(RC_IDENT, (void **)&src, &len);
@@ -965,6 +962,8 @@ bool CDLISParser::ReadAttributeValue(DlisValue *attr_val, RepresentaionCodes cod
                     DlisValueObjName *obj_name;
 
                     obj_name = (DlisValueObjName *)m_allocator.MemoryGet(m_pull_id_strings, sizeof(DlisValueObjName));
+                    memset(obj_name, 0, sizeof(DlisValueObjName));
+
                     ReadCodeComplex(code, (DlisValueObjName *)obj_name);
                     attr_val->data = (char *)obj_name;
                 }
@@ -975,6 +974,8 @@ bool CDLISParser::ReadAttributeValue(DlisValue *attr_val, RepresentaionCodes cod
                     DlisValueObjRef *obj_ref;
 
                     obj_ref = (DlisValueObjRef *)m_allocator.MemoryGet(m_pull_id_strings, sizeof(DlisValueObjRef));
+                    memset(obj_ref, 0, sizeof(DlisValueObjRef));
+
                     ReadCodeComplex(code, (DlisValueObjRef *)obj_ref);
                     attr_val->data = (char *)obj_ref;
                 }
@@ -985,6 +986,8 @@ bool CDLISParser::ReadAttributeValue(DlisValue *attr_val, RepresentaionCodes cod
                     DlisValueAttRef *att_ref;
 
                     att_ref = (DlisValueAttRef *)m_allocator.MemoryGet(m_pull_id_strings, sizeof(DlisValueAttRef));
+                    memset(att_ref, 0, sizeof(DlisValueAttRef));
+
                     ReadCodeComplex(code, (DlisValueAttRef *)att_ref);
                     attr_val->data = (char *)att_ref;
                 }
