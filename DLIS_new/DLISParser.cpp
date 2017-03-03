@@ -867,6 +867,7 @@ bool CDLISParser::ReadAttribute()
     
     attr = (DlisAttribute *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisAttribute));
     memset(attr, 0, sizeof(DlisAttribute));
+    attr->count = 1;
 
     if (m_state == STATE_PARSER_TEMPLATE_ATTRIBUTE)
         ColumnAdd(attr);
@@ -894,13 +895,20 @@ bool CDLISParser::ReadAttribute()
     }
     else
     {
-        DlisAttribute *column;
+        if (m_state == STATE_PARSER_ATTRIBUTE)
+        {
+            DlisAttribute *column;
 
-        column = AttrRepresentationCodeFind(m_last_set, m_last_object, attr);
-        if (column)
-            attr->code = column->code;
+            column = AttrRepresentationCodeFind(m_last_set, m_last_object, attr);
+            if (column)
+                attr->code = column->code;
+            else
+                attr->code = RC_UNDEFINED;
+        }
         else
-            attr->code = RC_UNDEFINED;
+        {
+                attr->code = RC_ASCII;
+        }
     } 
     
     if (m_component_header.format & TypeAttribute::TypeAttrUnits)
@@ -1037,7 +1045,8 @@ DlisAttribute *CDLISParser::AttrRepresentationCodeFind(DlisSet *set, DlisObject 
         if (attr == attribute)
             break;
 
-        ret = ret->next;
+        attribute = attribute->next;
+        ret       = ret->next;
     }
 
     return ret;
