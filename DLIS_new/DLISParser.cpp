@@ -486,8 +486,6 @@ bool CDLISParser::SegmentProcess()
 
             r = ComponentRead();
         }
-
-
     }
    
     return r;
