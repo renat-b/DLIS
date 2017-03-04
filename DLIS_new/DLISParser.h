@@ -190,9 +190,10 @@ private:
     void            FlagsParserSet(UINT flag);
     void            FlagAttrSet(UINT flag);
 
+    char           *StringTrim(char *str, size_t *len);
     DlisAttribute  *AttrRepresentationCodeFind(DlisSet *set, DlisObject *object, DlisAttribute *attr);
     // распечатка code representation
     void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size);
     void            DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t size);
-    void            DebugPrintTables(DlisSet *root);
+    void            DebugPrintTables(DlisSet *root, bool is_child, int ident);
 };
