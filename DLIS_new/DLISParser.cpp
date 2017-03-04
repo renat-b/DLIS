@@ -130,6 +130,8 @@ bool CDLISParser::Parse(const char *file_name)
     if (!ReadLogicalFiles())
         return false;
 
+    DebugPrintTables(m_sets);
+
     return true;
 }
 
@@ -471,7 +473,7 @@ bool CDLISParser::SegmentProcess()
             // продолжение сегмента (второй и тд сегмент) в списке сегментов
             if ( !(m_segment_header.attributes & Successor))
             {
-                m_state |= STATE_FIRST_SEGMEN_LOGICAL_FILE;
+                FlagAttrSet(STATE_FIRST_SEGMEN_LOGICAL_FILE);
             }
         }
 
@@ -486,8 +488,6 @@ bool CDLISParser::SegmentProcess()
 
             r = ComponentRead();
         }
-
-
     }
    
     return r;
@@ -913,8 +913,7 @@ void CDLISParser::SetAdd(DlisSet *set)
             m_set = &(*m_set)->next;
         }
 
-        m_state &= ~STATE_FIRST_SEGMEN_LOGICAL_FILE;
-        m_state |= STATE_SECOND_SEGMENT_LOGICAL_FILE;
+        FlagAttrSet(STATE_SECOND_SEGMENT_LOGICAL_FILE);
 
         *m_set   = set;
         m_set    = &(*m_set)->childs;
@@ -922,8 +921,8 @@ void CDLISParser::SetAdd(DlisSet *set)
     else if (m_state & STATE_SECOND_SEGMENT_LOGICAL_FILE)
     {
         *m_set  = set;
-
-        m_state &= ~STATE_SECOND_SEGMENT_LOGICAL_FILE;
+        
+        FlagAttrSet(0);
         m_set    = &(*m_set)->next;
     }
     else
@@ -962,6 +961,25 @@ void CDLISParser::AttributeAdd(DlisAttribute *attribute)
 /*
 * 
 */
+void CDLISParser::FlagsParserSet(UINT flag)
+{
+    m_state &= ~STATE_PARSER_ALL;
+    m_state |= flag;
+}
+
+/*
+* 
+*/
+void CDLISParser::FlagAttrSet(UINT flag)
+{
+    m_state &= ~(STATE_FIRST_SEGMEN_LOGICAL_FILE | STATE_SECOND_SEGMENT_LOGICAL_FILE);
+    if (flag)
+        m_state |= flag;
+}
+
+/*
+* 
+*/
 DlisAttribute *CDLISParser::AttrRepresentationCodeFind(DlisSet *set, DlisObject *object, DlisAttribute *attr)
 {
     DlisAttribute *ret = NULL;
@@ -988,9 +1006,8 @@ bool CDLISParser::ReadSet()
 {
     char       *val;
     size_t      len;
-
-    m_state                    &= ~(STATE_PARSER_TEMPLATE_ATTRIBUTE | STATE_PARSER_ATTRIBUTE | STATE_PARSER_OBJECT);
-    m_state                    |=   STATE_PARSER_SET;
+    
+    FlagsParserSet(STATE_PARSER_SET);
     m_object_num                =   0;
     m_attributes_count          =   0;
     m_template_attributes_count =   0; 
@@ -1033,8 +1050,7 @@ bool CDLISParser::ReadSet()
 */
 bool CDLISParser::ReadObject()
 {
-    m_state  &= ~(STATE_PARSER_TEMPLATE_ATTRIBUTE | STATE_PARSER_ATTRIBUTE | STATE_PARSER_SET);
-    m_state  |= STATE_PARSER_OBJECT; 
+    FlagsParserSet(STATE_PARSER_OBJECT);
     
     m_last_object = (DlisObject *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisObject));
     memset(m_last_object, 0, sizeof(DlisObject));
@@ -1062,13 +1078,11 @@ bool CDLISParser::ReadAttribute()
     // если первый атрибут, определим это атрибут объекта или шаблона
     if (m_state & STATE_PARSER_SET)
     {
-        m_state &= ~STATE_PARSER_SET;
-        m_state |= STATE_PARSER_TEMPLATE_ATTRIBUTE;
+        FlagsParserSet(STATE_PARSER_TEMPLATE_ATTRIBUTE);
     }
     if (m_state & STATE_PARSER_OBJECT)
     {
-        m_state &= ~STATE_PARSER_OBJECT;
-        m_state |= STATE_PARSER_ATTRIBUTE;
+        FlagsParserSet(STATE_PARSER_ATTRIBUTE);
     }
 
 
@@ -1311,4 +1325,110 @@ void CDLISParser::DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t
             break;
     }
 
+}
+
+
+void CDLISParser::DebugPrintTables(DlisSet *root)
+{
+    size_t          i = 0;
+    DlisAttribute  *attr;
+    DlisObject     *object;
+
+    attr = root->colums;
+    while (attr)
+    {
+        i++;
+        
+        attr = attr->next;
+    }
+    
+    int *len_columns = new int[i];
+    int  len;
+
+    i      = 0;
+    attr = root->colums;
+    while (attr)
+    {
+        len_columns[i] = (int)strlen(attr->label);
+
+        attr = attr->next;
+        i++;
+    }
+
+
+    i      = 0;
+    object = root->objects;
+    while (object)
+    {
+        attr = object->attr;
+        while (attr)
+        {
+            if (attr->code == RC_ASCII || attr->code == RC_IDENT)
+            {
+                len = (int)strlen(attr->value->data);
+
+                if (len_columns[i] < len)
+                    len_columns[i] = len;
+            }
+            attr = attr->next;
+        }
+
+        object = object->next;
+    }
+
+
+    // выводим таблицу
+    char  format_str[128];
+
+    i      = 0;
+    attr = root->colums;
+    while (attr)
+    {
+        printf("%s", attr->label);
+
+        len = (int)strlen(attr->label);
+        sprintf(format_str, "%%%ds", len_columns[i] - len);
+        printf(format_str, " ");
+
+        printf("    ");
+
+        attr = attr->next;
+        i++;
+    }
+    printf("\n");
+
+    i      = 0;
+    object = root->objects;
+    while (object)
+    {
+        i = 0;
+        attr = object->attr;
+        while (attr)
+        {
+            if (attr->code == RC_ASCII || attr->code == RC_IDENT)
+            {
+                printf("%s", attr->value->data);
+
+                len = (int)strlen(attr->value->data);
+                sprintf(format_str, "%%%ds", len_columns[i] - len);
+                printf(format_str, " ");
+
+                printf("    ");
+            }
+            else
+            {
+                len = len_columns[i];
+
+                sprintf(format_str, "%%%ds", len);
+                printf(format_str,  " ");
+            }
+            i++;
+            attr = attr->next;
+        }
+
+        printf("\n");
+        object = object->next;
+    }
+
+    delete len_columns;
 }
