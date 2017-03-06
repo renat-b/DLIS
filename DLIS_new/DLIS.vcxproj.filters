@@ -42,6 +42,9 @@
     <ClCompile Include="DlisAllocator.cpp">
       <Filter>Source Files\DLIS</Filter>
     </ClCompile>
+    <ClCompile Include="DlisPrint.cpp">
+      <Filter>Source Files\DLIS</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DLISParser.h">
@@ -54,6 +57,9 @@
       <Filter>Header Files\DLIS</Filter>
     </ClInclude>
     <ClInclude Include="DlisAllocator.h">
+      <Filter>Header Files\DLIS</Filter>
+    </ClInclude>
+    <ClInclude Include="DlisPrint.h">
       <Filter>Header Files\DLIS</Filter>
     </ClInclude>
   </ItemGroup>
