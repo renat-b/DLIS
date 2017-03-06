@@ -1,7 +1,7 @@
 #include "DlisPrint.h"
 #include "stdio.h"
 
-CDLISPrint::CDLISPrint() : m_pull_id(0), m_columns(NULL), m_parser(NULL)
+CDLISPrint::CDLISPrint() : m_pull_id(0), m_columns(NULL), m_parser(NULL), m_delimeter(NULL)
 {
 
 }
@@ -60,6 +60,23 @@ void CDLISPrint::Print(CDLISParser *parser)
         set = set->next;
     }
 
+    int          len = 0;
+    DlisColumns *column;
+    
+    column = m_columns;
+    while (column)
+    {
+        len += column->len + IDENT_LEFT + IDENT_RIGHT;
+        column = column->next;
+    }
+    
+    m_delimeter = m_allocator.MemoryGet(m_pull_id, len + 1);
+    if (!m_delimeter)
+        return;
+
+    for (int i = 0; i < len; i++)
+        m_delimeter[i] = '-';
+    m_delimeter[len] = 0;
 
     params.flags = 0;
     params.row   = 0;
@@ -227,6 +244,7 @@ void CDLISPrint::WalkTreeSetBegin(DlisSet *set, WalkTreeParams *params)
 void CDLISPrint::WalkTreeSetEnd(DlisSet *set, WalkTreeParams *params)
 {
     printf("\n");
+    printf(m_delimeter);
 }
 
 

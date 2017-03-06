@@ -198,7 +198,7 @@ char *CDLISParser::Attr2String(DlisAttribute *attr, char *buf, size_t buf_len)
                 int     val = 0;
                 // в первом байте содержится размер, далее данные в байтах
                 len_byte = *(byte *)attr->value->data;
-                src = attr->value->data + 1;                
+                src = attr->value->data + sizeof(byte);                
                 memcpy(&val, src, len_byte); 
                 _itoa_s(val, buf, buf_len, 10);
             }
@@ -253,7 +253,7 @@ char *CDLISParser::Attr2String(DlisAttribute *attr, char *buf, size_t buf_len)
                 if (attr->code == RC_FSINGL)
                 {
                     memcpy(&val, attr->value->data, sizeof(float));
-                    Big2LittelEndian(&val, sizeof(val));
+                    Big2LittelEndian(&val, sizeof(float));
                     val_d = val;
                 }
                 else

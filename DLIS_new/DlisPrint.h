@@ -4,6 +4,7 @@
 #include "DlisAllocator.h"
 #include "DLISParser.h"
 
+
 class  CDLISPrint
 {
 private:
@@ -53,6 +54,7 @@ private:
 
     DlisColumns       *m_columns;
     CDLISParser       *m_parser;
+    char              *m_delimeter;
 
 public:
     CDLISPrint();
