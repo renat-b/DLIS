@@ -60,6 +60,7 @@ void CDLISPrint::Print(CDLISParser *parser)
         set = set->next;
     }
 
+
     params.flags = 0;
     params.row   = 0;
     params.walk_tree_attr         = &CDLISPrint::WalkTreePrintAttr;

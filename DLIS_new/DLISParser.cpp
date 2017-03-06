@@ -228,12 +228,55 @@ char *CDLISParser::Attr2String(DlisAttribute *attr, char *buf, size_t buf_len)
         case RC_UNORM:                         // 2 	Normal unsigned integer
         case RC_ULONG:                         // 4 	Long unsigned integer
             {
-                int k = 10;
+                long  val = 0;
+                int   len = 1; 
+                
+                if (attr->code == RC_SNORM) 
+                    len = 2;
+                else if (attr->code == RC_SLONG)
+                    len = 4;
+                else
+                    len = 1;
+
+                memcpy(&val, attr->value->data, len);
+                Big2LittelEndian(&val, len);
+                _ltoa_s(val, buf, buf_len, 10);
             }
+            break;
+
+        case RC_FSINGL:                     
+        case RC_FDOUBL:
+            {
+                float   val;
+                double  val_d;
+
+                if (attr->code == RC_FSINGL)
+                {
+                    memcpy(&val, attr->value->data, sizeof(float));
+                    Big2LittelEndian(&val, sizeof(val));
+                    val_d = val;
+                }
+                else
+                {
+                    memcpy(&val_d, attr->value->data, sizeof(double));
+                    Big2LittelEndian(&val, sizeof(double));
+                }
+                sprintf_s(buf, buf_len, "%.2f", val);
+            }
+            break;
+
+        case RC_UNITS:
+            strcpy_s(buf, buf_len, attr->value->data);
             break;
 
         default:
             break;
+    }
+
+    if (attr->units)
+    {
+        strcat_s(buf, buf_len, " ");
+        strcat_s(buf, buf_len, attr->units);
     }
 
     return buf;
