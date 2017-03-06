@@ -1,7 +1,7 @@
 #include "DlisPrint.h"
 #include "stdio.h"
 
-CDLISPrint::CDLISPrint() : m_pull_id(0), m_columns(NULL)
+CDLISPrint::CDLISPrint() : m_pull_id(0), m_columns(NULL), m_parser(NULL)
 {
 
 }
@@ -25,14 +25,40 @@ void CDLISPrint::Shutdown()
 }
 
 
-void CDLISPrint::Print(DlisSet *set)
+void CDLISPrint::Print(CDLISParser *parser)
 {
+    if (!parser)
+        return;
+
+    DlisSet       *root;
     WalkTreeParams params;
+    
+    m_parser = parser;
+    root = m_parser->GetRoot();
+    
+    if (!root)
+        return;
 
     memset(&params, 0, sizeof(WalkTreeParams));
     params.walk_tree_attr = &CDLISPrint::WalkTreeCount;
 
-    Traversal(set, &params);
+
+    DlisSet *set;   
+    DlisSet *child; 
+
+    set = root;
+    while(set)
+    {
+        Traversal(set, &params);
+        child = set->childs;
+        while(child)
+        {
+            Traversal(child, &params);
+            child = child->next;
+        }
+
+        set = set->next;
+    }
 
     params.flags = 0;
     params.row   = 0;
@@ -43,7 +69,20 @@ void CDLISPrint::Print(DlisSet *set)
     params.walk_tree_end_object   = &CDLISPrint::WalkTreeObjectEnd;
     params.walk_tree_end          = &CDLISPrint::WalkTreeEnd;
 
-    Traversal(set, &params);
+    set = root;
+    while(set)
+    {
+        Traversal(set, &params);
+        child = set->childs;
+        while(child)
+        {
+            Traversal(child, &params);
+            child = child->next;
+        }
+
+        set = set->next;
+    }
+
 }
 
 
@@ -158,22 +197,14 @@ void CDLISPrint::WalkTreePrintAttr(DlisAttribute *attr, WalkTreeParams *params)
         return;
 
     // выводим таблицу
-    char   *str;
-    int     len;
-    char    format_str[128];
-    char    dump_string[1] = { 0 };
+    char *str;
+    int   len;
+    char  format_str[128];
     
     if (params->flags == FLAG_SET)
         str = attr->label;
     else
-    {
-        if ((attr->code == RC_ASCII || attr->code == RC_IDENT) && attr->value)
-        {
-            str = attr->value->data;
-        }
-        else
-            str = dump_string;
-    }
+        str = m_parser->Attr2String(attr, format_str, sizeof(format_str));
 
     printf("  ");
     printf("%s", str);
@@ -212,7 +243,7 @@ void CDLISPrint::WalkTreeObjectEnd(DlisObject *object, WalkTreeParams *params)
 
 void CDLISPrint::WalkTreeEnd(WalkTreeParams *params)
 {
-    printf("\n");
+    printf("\n\n\n\n");
 }
 
 

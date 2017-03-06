@@ -2,6 +2,7 @@
 
 #include "DlisCommon.h"
 #include "DlisAllocator.h"
+#include "DLISParser.h"
 
 class  CDLISPrint
 {
@@ -51,6 +52,7 @@ private:
     size_t             m_pull_id;
 
     DlisColumns       *m_columns;
+    CDLISParser       *m_parser;
 
 public:
     CDLISPrint();
@@ -58,7 +60,7 @@ public:
 
     void          Initialize();
     void          Shutdown();
-    void          Print(DlisSet *set);
+    void          Print(CDLISParser *parser);
 
 private:
     void          Traversal(DlisSet *set, WalkTreeParams *params);

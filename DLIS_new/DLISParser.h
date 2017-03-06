@@ -138,6 +138,10 @@ public:
     // инициализация, выгрузка внутренних буферов и данных из парсера
     bool            Initialize();
     void            Shutdown();
+    
+    DlisSet        *GetRoot()     {  return m_sets;  }
+
+    char           *Attr2String(DlisAttribute *attr, char *buf, size_t buf_len);
 
 private:
     //  чтение файла

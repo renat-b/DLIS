@@ -134,7 +134,7 @@ bool CDLISParser::Parse(const char *file_name)
     CDLISPrint debug_print;
 
     debug_print.Initialize();
-    debug_print.Print(m_sets->childs->next);
+    debug_print.Print(this);
     debug_print.Shutdown();
 
     return true;
@@ -167,6 +167,76 @@ void CDLISParser::Shutdown()
     memset(&m_file_chunk, 0, sizeof(m_file_chunk));
 
     m_allocator.PullFreeAll();
+}
+
+
+char *CDLISParser::Attr2String(DlisAttribute *attr, char *buf, size_t buf_len)
+{
+    if (!attr)
+        return NULL;
+
+    if (!buf || buf_len == 0)
+        return NULL;
+
+    buf[0] = 0;
+
+    if (!attr->value)
+        return buf;
+
+    switch (attr->code)
+    {
+        case RC_ASCII:
+        case RC_IDENT:
+            strcpy_s(buf, buf_len, attr->value->data);
+            break;
+
+        case RC_ORIGIN:
+        case RC_UVARI:
+            {
+                char   *src; 
+                size_t  len_byte;
+                int     val = 0;
+                // в первом байте содержится размер, далее данные в байтах
+                len_byte = *(byte *)attr->value->data;
+                src = attr->value->data + 1;                
+                memcpy(&val, src, len_byte); 
+                _itoa_s(val, buf, buf_len, 10);
+            }
+            break;
+
+        case RC_SSHORT:                        // 1 	Short signed integer
+        case RC_SNORM:                         // 2 	Normal signed integer
+        case RC_SLONG:                         // 4 	Long signed integer
+            {
+                int  val = 0;
+                int  len = 1; 
+                
+                if (attr->code == RC_SNORM) 
+                    len = 2;
+                else if (attr->code == RC_SLONG)
+                    len = 4;
+                else
+                    len = 1;
+
+                memcpy(&val, attr->value->data, len);
+                Big2LittelEndian(&val, len);
+                _itoa_s(val, buf, buf_len, 10);
+            }
+            break; 
+
+        case RC_USHORT:                        // 1 	Short unsigned integer
+        case RC_UNORM:                         // 2 	Normal unsigned integer
+        case RC_ULONG:                         // 4 	Long unsigned integer
+            {
+                int k = 10;
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    return buf;
 }
 
 
@@ -860,8 +930,21 @@ bool CDLISParser::ReadAttributeValue(DlisValue *attr_val, RepresentaionCodes cod
     else if (type == REP_CODE_VARIABLE_SIMPLE)
     {
         ReadCodeSimple(code, (void **)&val, &len);
-        attr_val->data = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
-        strcpy_s(attr_val->data, len + 1, val);
+        switch(code)
+        {
+            case RC_UVARI:
+            case RC_ORIGIN:
+                attr_val->data = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+                *(byte *)(attr_val->data) = (byte)len;
+                memcpy(attr_val->data + 1, val, len);
+                break;
+
+            default:
+                attr_val->data = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+                strcpy_s(attr_val->data, len + 1, val);
+                break;
+
+        }
     }
     else if (type == REP_CODE_VARIABLE_COMPLEX)
     {
