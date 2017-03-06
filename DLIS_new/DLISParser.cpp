@@ -1418,13 +1418,13 @@ void CDLISParser::DebugPrintTables(DlisSet *root, bool is_child, int ident)
     attr = root->colums;
     while (attr)
     {
-        sprintf(format_str, "%%%ds", ident);
+        sprintf_s(format_str, "%%%ds", ident);
         printf(format_str, "");
 
         printf("%s", attr->label);
 
         len = (int)strlen(attr->label);
-        sprintf(format_str, "%%%ds", len_columns[i] - len);
+        sprintf_s(format_str, "%%%ds", len_columns[i] - len);
         printf(format_str, "");
 
         printf("    ");
@@ -1442,7 +1442,7 @@ void CDLISParser::DebugPrintTables(DlisSet *root, bool is_child, int ident)
         attr = object->attr;
         while (attr)
         {
-            sprintf(format_str, "%%%ds", ident);
+            sprintf_s(format_str, "%%%ds", ident);
             printf(format_str, "");
 
             if ((attr->code == RC_ASCII || attr->code == RC_IDENT) && attr->value)
@@ -1450,14 +1450,14 @@ void CDLISParser::DebugPrintTables(DlisSet *root, bool is_child, int ident)
                 printf("%s", attr->value->data);
 
                 len = (int)strlen(attr->value->data);
-                sprintf(format_str, "%%%ds", len_columns[i] - len);
+                sprintf_s(format_str, "%%%ds", len_columns[i] - len);
                 printf(format_str, "");
             }
             else
             {
                 len = len_columns[i];
 
-                sprintf(format_str, "%%%ds", len);
+                sprintf_s(format_str, "%%%ds", len);
                 printf(format_str,  "");
             }
 
