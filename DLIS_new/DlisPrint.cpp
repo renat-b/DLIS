@@ -25,40 +25,65 @@ void CDLISPrint::Shutdown()
 }
 
 
-void CDLISPrint::Traversal(DlisSet *set, WalkTreeFunc walk_tree)
+void CDLISPrint::Print(DlisSet *set)
 {
-    size_t           row;
-    DlisAttribute   *attr;
-    DlisObject      *object;
-    WalkTreeRecord   record;
+    WalkTreeParams params;
 
-    row          = 0;
-    record.flags = FLAG_SET;
-    attr         = set->colums;
+    memset(&params, 0, sizeof(WalkTreeParams));
+    params.walk_tree_attr = &CDLISPrint::WalkTreeCount;
+
+    Traversal(set, &params);
+}
+
+
+void CDLISPrint::Traversal(DlisSet *set, WalkTreeParams *params)
+{
+    size_t          row;
+    DlisAttribute  *attr;
+    DlisObject     *object;
+
+    if (params->walk_tree_begin_set)
+        (this->*params->walk_tree_begin_set)(set, params);
+
+    row           = 0;
+    params->flags = FLAG_SET;
+    attr          = set->colums;
     while (attr)
     {
-        record.row = row;
-        (this->*walk_tree)(attr, &record);
+        params->row = row;
+        if (params->walk_tree_attr)
+            (this->*params->walk_tree_attr)(attr, params);
 
         attr = attr->next;
         row++;
     }
 
+    if (params->walk_tree_end_set)
+        (this->*params->walk_tree_end_set)(set, params);
 
-    record.flags = FLAG_OBJECT;
-    object       = set->objects;
+
+    params->flags = FLAG_OBJECT;
+    object        = set->objects;
     while (object)
     {
+
+        if (params->walk_tree_begin_object)
+            (this->*params->walk_tree_begin_object)(object, params);
+
         row  = 0;
         attr = object->attr;
         while (attr)
         {
-            record.row = row;
-            (this->*walk_tree)(attr, &record);
+            params->row = row;
+            if (params->walk_tree_attr)
+                (this->*params->walk_tree_attr)(attr, params);
 
             row++;
             attr = attr->next;
         }
+
+        if (params->walk_tree_end_object)
+            (this->*params->walk_tree_end_object)(object, params);
 
         object = object->next;
     }
@@ -71,7 +96,7 @@ void CDLISPrint::DlisSetPrint(DlisSet *set)
 }
 
 
-void CDLISPrint::TreeWalkCount(DlisAttribute *attr, WalkTreeRecord *params)
+void CDLISPrint::WalkTreeCount(DlisAttribute *attr, WalkTreeParams *params)
 {
     DlisColumns  *found;
 
@@ -81,6 +106,8 @@ void CDLISPrint::TreeWalkCount(DlisAttribute *attr, WalkTreeRecord *params)
         found = (DlisColumns *)m_allocator.MemoryGet(m_pull_id, sizeof(DlisColumns));
         if (!found)
             return;
+
+        memset(found, 0, sizeof(DlisColumns));
 
 
         DlisColumns **next;
@@ -109,7 +136,7 @@ void CDLISPrint::TreeWalkCount(DlisAttribute *attr, WalkTreeRecord *params)
 }
 
 
-void CDLISPrint::TreeWalkPrintAttr(DlisAttribute *attr, WalkTreeRecord *params)
+void CDLISPrint::WalkTreePrintAttr(DlisAttribute *attr, WalkTreeParams *params)
 {
     DlisColumns  *found;
 
@@ -143,7 +170,30 @@ void CDLISPrint::TreeWalkPrintAttr(DlisAttribute *attr, WalkTreeRecord *params)
     printf(format_str, "");
 
     printf("  ");
+}
 
+
+void CDLISPrint::WalkTreeBeginSet(DlisSet *set, void *params)
+{
+
+}
+
+
+void CDLISPrint::WalkTreeEndSet(DlisSet *set, void *params)
+{
+    printf("\n");
+}
+
+
+void CDLISPrint::WalkTreeObjectBegin(DlisObject *object, void *params)
+{
+    printf("\n");
+}
+
+
+void CDLISPrint::WalkTreeObjectEnd(DlisObject *object, void *params)
+{
+    printf("\n");
 }
 
 

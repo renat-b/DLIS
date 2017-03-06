@@ -15,12 +15,24 @@ private:
     };
 
 private:
-    typedef void (CDLISPrint::*WalkTreeFunc)(DlisAttribute *attr, void *params);
+    struct WalkTreeParams;
 
-    struct WalkTreeRecord
+    typedef void (CDLISPrint::*WalkTreeAttrFunc)(DlisAttribute *attr, WalkTreeParams *params);
+    typedef void (CDLISPrint::*WalkTreeBeginSetFunc)(DlisSet *set, WalkTreeParams *params);
+    typedef void (CDLISPrint::*WalkTreeEndSetFunc)(DlisSet *set, WalkTreeParams *params);
+    typedef void (CDLISPrint::*WalkTreeObjectBeginFunc)(DlisObject *object, WalkTreeParams *params);
+    typedef void (CDLISPrint::*WalkTreeObjectEndFunc)(DlisObject *object, WalkTreeParams *params);
+
+    struct WalkTreeParams
     {
+        WalkTreeAttrFunc          walk_tree_attr;
+        WalkTreeBeginSetFunc      walk_tree_begin_set;
+        WalkTreeEndSetFunc        walk_tree_end_set;
+        WalkTreeObjectBeginFunc   walk_tree_begin_object; 
+        WalkTreeObjectEndFunc     walk_tree_end_object;
+
         size_t         row;
-        unsigned int   flags;
+        unsigned int   flags;   
     };
 
     struct DlisColumns
@@ -44,13 +56,19 @@ public:
 
     void          Initialize();
     void          Shutdown();
+    void          Print(DlisSet *set);
 
 private:
-    void          Traversal(DlisSet *set, WalkTreeFunc walk_tree);
+    void          Traversal(DlisSet *set, WalkTreeParams *params);
     void          DlisSetPrint(DlisSet *set);
 
-    void          TreeWalkCount(DlisAttribute *attr, WalkTreeRecord *params);
-    void          TreeWalkPrintAttr(DlisAttribute *attr, WalkTreeRecord *params);
+    void          WalkTreeCount(DlisAttribute *attr, WalkTreeParams *params);
+
+    void          WalkTreePrintAttr(DlisAttribute *attr, WalkTreeParams *params);
+    void          WalkTreeBeginSet(DlisSet *set, void *params);
+    void          WalkTreeEndSet(DlisSet *set, void *params);
+    void          WalkTreeObjectBegin(DlisObject *object, void *params); 
+    void          WalkTreeObjectEnd(DlisObject *object, void *params);
 
     DlisColumns  *ColumnsFind(size_t column);
 };

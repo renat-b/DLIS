@@ -3,6 +3,7 @@
 #include "stdlib.h"
 #include "stddef.h"
 #include "assert.h"
+#include "DlisPrint.h"
 
 CFileBin *g_global_log = NULL;
 
@@ -130,7 +131,11 @@ bool CDLISParser::Parse(const char *file_name)
     if (!ReadLogicalFiles())
         return false;
 
-    DebugPrintTables(m_sets, false, 0);
+    CDLISPrint debug_print;
+
+    debug_print.Initialize();
+    debug_print.Print(m_sets);
+    debug_print.Shutdown();
 
     return true;
 }
