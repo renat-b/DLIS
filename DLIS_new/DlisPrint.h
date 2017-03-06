@@ -22,6 +22,7 @@ private:
     typedef void (CDLISPrint::*WalkTreeEndSetFunc)(DlisSet *set, WalkTreeParams *params);
     typedef void (CDLISPrint::*WalkTreeObjectBeginFunc)(DlisObject *object, WalkTreeParams *params);
     typedef void (CDLISPrint::*WalkTreeObjectEndFunc)(DlisObject *object, WalkTreeParams *params);
+    typedef void (CDLISPrint::*WalkTreeEndFunc)(WalkTreeParams *params);
 
     struct WalkTreeParams
     {
@@ -30,6 +31,7 @@ private:
         WalkTreeEndSetFunc        walk_tree_end_set;
         WalkTreeObjectBeginFunc   walk_tree_begin_object; 
         WalkTreeObjectEndFunc     walk_tree_end_object;
+        WalkTreeEndFunc           walk_tree_end;
 
         size_t         row;
         unsigned int   flags;   
@@ -65,10 +67,11 @@ private:
     void          WalkTreeCount(DlisAttribute *attr, WalkTreeParams *params);
 
     void          WalkTreePrintAttr(DlisAttribute *attr, WalkTreeParams *params);
-    void          WalkTreeBeginSet(DlisSet *set, void *params);
-    void          WalkTreeEndSet(DlisSet *set, void *params);
-    void          WalkTreeObjectBegin(DlisObject *object, void *params); 
-    void          WalkTreeObjectEnd(DlisObject *object, void *params);
+    void          WalkTreeSetBegin(DlisSet *set, WalkTreeParams *params);
+    void          WalkTreeSetEnd(DlisSet *set, WalkTreeParams *params);
+    void          WalkTreeObjectBegin(DlisObject *object, WalkTreeParams *params);
+    void          WalkTreeObjectEnd(DlisObject *object, WalkTreeParams *params);
+    void          WalkTreeEnd(WalkTreeParams *params);
 
     DlisColumns  *ColumnsFind(size_t column);
 };

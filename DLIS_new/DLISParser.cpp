@@ -134,7 +134,7 @@ bool CDLISParser::Parse(const char *file_name)
     CDLISPrint debug_print;
 
     debug_print.Initialize();
-    debug_print.Print(m_sets);
+    debug_print.Print(m_sets->childs->next);
     debug_print.Shutdown();
 
     return true;

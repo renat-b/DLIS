@@ -33,6 +33,17 @@ void CDLISPrint::Print(DlisSet *set)
     params.walk_tree_attr = &CDLISPrint::WalkTreeCount;
 
     Traversal(set, &params);
+
+    params.flags = 0;
+    params.row   = 0;
+    params.walk_tree_attr         = &CDLISPrint::WalkTreePrintAttr;
+    params.walk_tree_begin_set    = &CDLISPrint::WalkTreeSetBegin;
+    params.walk_tree_end_set      = &CDLISPrint::WalkTreeSetEnd;
+    params.walk_tree_begin_object = &CDLISPrint::WalkTreeObjectBegin;
+    params.walk_tree_end_object   = &CDLISPrint::WalkTreeObjectEnd;
+    params.walk_tree_end          = &CDLISPrint::WalkTreeEnd;
+
+    Traversal(set, &params);
 }
 
 
@@ -87,6 +98,8 @@ void CDLISPrint::Traversal(DlisSet *set, WalkTreeParams *params)
 
         object = object->next;
     }
+    if (params->walk_tree_end)
+        (this->*params->walk_tree_end)(params);
 }
 
 
@@ -173,25 +186,31 @@ void CDLISPrint::WalkTreePrintAttr(DlisAttribute *attr, WalkTreeParams *params)
 }
 
 
-void CDLISPrint::WalkTreeBeginSet(DlisSet *set, void *params)
+void CDLISPrint::WalkTreeSetBegin(DlisSet *set, WalkTreeParams *params)
 {
 
 }
 
 
-void CDLISPrint::WalkTreeEndSet(DlisSet *set, void *params)
-{
-    printf("\n");
-}
-
-
-void CDLISPrint::WalkTreeObjectBegin(DlisObject *object, void *params)
+void CDLISPrint::WalkTreeSetEnd(DlisSet *set, WalkTreeParams *params)
 {
     printf("\n");
 }
 
 
-void CDLISPrint::WalkTreeObjectEnd(DlisObject *object, void *params)
+void CDLISPrint::WalkTreeObjectBegin(DlisObject *object, WalkTreeParams *params)
+{
+    printf("\n");
+}
+
+
+void CDLISPrint::WalkTreeObjectEnd(DlisObject *object, WalkTreeParams *params)
+{
+    //printf("\n");
+}
+
+
+void CDLISPrint::WalkTreeEnd(WalkTreeParams *params)
 {
     printf("\n");
 }
