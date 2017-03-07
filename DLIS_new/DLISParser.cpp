@@ -259,9 +259,9 @@ char *CDLISParser::Attr2String(DlisAttribute *attr, char *buf, size_t buf_len)
                 else
                 {
                     memcpy(&val_d, attr->value->data, sizeof(double));
-                    Big2LittelEndian(&val, sizeof(double));
+                    Big2LittelEndian(&val_d, sizeof(double));
                 }
-                sprintf_s(buf, buf_len, "%.2f", val);
+                sprintf_s(buf, buf_len, "%.2f", val_d);
             }
             break;
 
@@ -935,7 +935,7 @@ bool CDLISParser::ReadCodeComplex(RepresentaionCodes code, void *dst)
 
         case RC_ATTREF:
             {
-                DlisValueAttRef   *value;
+                DlisValueAttRef  *value;
                 value = (DlisValueAttRef *)dst;
 
                 ReadCodeSimple(RC_IDENT, (void **)&src, &len);
@@ -1485,132 +1485,4 @@ void CDLISParser::DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t
             break;
     }
 
-}
-
-
-void CDLISParser::DebugPrintTables(DlisSet *root, bool is_child, int ident)
-{
-    if (!root)
-        return;
-
-    size_t          i = 0;
-    DlisAttribute  *attr;
-    DlisObject     *object;
-
-    attr = root->colums;
-    while (attr)
-    {
-        i++;
-        
-        attr = attr->next;
-    }
-    
-    int *len_columns = new int[i];
-    int  len;
-
-    i    = 0;
-    attr = root->colums;
-    while (attr)
-    {
-        len_columns[i] = (int)strlen(attr->label);
-
-        attr = attr->next;
-        i++;
-    }
-
-
-    i      = 0;
-    object = root->objects;
-    while (object)
-    {
-        i    = 0;
-        attr = object->attr;
-        while (attr)
-        {
-            if ((attr->code == RC_ASCII || attr->code == RC_IDENT) && attr->value)
-            {
-                len = (int)strlen(attr->value->data);
-
-                if (len_columns[i] < len)
-                    len_columns[i] = len;
-            }
-            i++;
-            attr = attr->next;
-        }
-
-        object = object->next;
-    }
-
-
-    // выводим таблицу
-    char  format_str[128];
-
-    i      = 0;
-    attr = root->colums;
-    while (attr)
-    {
-        sprintf_s(format_str, "%%%ds", ident);
-        printf(format_str, "");
-
-        printf("%s", attr->label);
-
-        len = (int)strlen(attr->label);
-        sprintf_s(format_str, "%%%ds", len_columns[i] - len);
-        printf(format_str, "");
-
-        printf("    ");
-
-        attr = attr->next;
-        i++;
-    }
-    printf("\n");
-
-    i      = 0;
-    object = root->objects;
-    while (object)
-    {
-        i = 0;
-        attr = object->attr;
-        while (attr)
-        {
-            sprintf_s(format_str, "%%%ds", ident);
-            printf(format_str, "");
-
-            if ((attr->code == RC_ASCII || attr->code == RC_IDENT) && attr->value)
-            {
-                printf("%s", attr->value->data);
-
-                len = (int)strlen(attr->value->data);
-                sprintf_s(format_str, "%%%ds", len_columns[i] - len);
-                printf(format_str, "");
-            }
-            else
-            {
-                len = len_columns[i];
-
-                sprintf_s(format_str, "%%%ds", len);
-                printf(format_str,  "");
-            }
-
-            printf("    ");
-
-            i++;
-            attr = attr->next;
-        }
-
-        printf("\n");
-        object = object->next;
-    }
-
-    printf("\n");
-    delete len_columns;
-
-    
-    if (!is_child)
-        DebugPrintTables(root->childs, true, 8);
-    
-    if (is_child)
-        DebugPrintTables(root->next, true, ident);
-    else
-        DebugPrintTables(root->next, false, 0);
 }
