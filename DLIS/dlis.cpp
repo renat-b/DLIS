@@ -2853,16 +2853,21 @@ uint LogicalRecord::writeSegment(Output &out, uint segBodyLen, bool isFirst, boo
 		padding += paddingToMinSegLen;
 		segLen += paddingToMinSegLen;
 	}
+
 	SegmentHeader lrsh(segLen);
-	lrsh.lrsa[Padding] = padding > 0;
-	lrsh.lrsa[NotLast] = !isLast;
+
+	lrsh.lrsa[Padding]  = padding > 0;
+	lrsh.lrsa[NotLast]  = !isLast;
 	lrsh.lrsa[NotFirst] = !isFirst;
-	lrsh.lrsa[EFLR] = isEFLR();
+	lrsh.lrsa[EFLR]     = isEFLR();
 	lrsh.hdr.lrtb = isEFLR() ?  m_lrt.e : m_lrt.i;
 	lrsh.write(out);
+
 	out.write(*m_pBody, segBodyLen);
-	if (padding > 0) {
-		if (padding > 1) {
+	if (padding > 0) 
+    {
+		if (padding > 1) 
+        {
 			vector<byte> padBytes(padding - 1);
 			out.write(&padBytes.front(), padBytes.size());
 		}
@@ -4856,19 +4861,26 @@ typedef const vector<Channel *> Channels;
 class Frame {
 public:
 	Frame() : m_num(0), m_pIflr(NULL), m_pSlots(0) {}
-	~Frame() {
+
+	~Frame() 
+    {
 		delete m_pIflr;
 	}
-	void clear() {
+
+	void clear() 
+    {
 		clearSlots();
 		location.clear();
 		m_num = 0;
 		m_pSlots = 0;
 	}
-	void clearSlots() {
+
+	void clearSlots() 
+    {
 		delete m_pIflr;
 		m_pIflr = NULL;
 	}
+
 // Функции чтения
 	uint32 number() const { return m_num; }
 	bool slotsEmpty() { return m_pIflr == NULL; }

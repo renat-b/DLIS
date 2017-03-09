@@ -170,7 +170,7 @@ void CDLISParser::Shutdown()
 }
 
 
-char *CDLISParser::Attr2String(DlisAttribute *attr, char *buf, size_t buf_len)
+char *CDLISParser::AttrGetValue(DlisAttribute *attr, char *buf, size_t buf_len)
 {
     if (!attr)
         return NULL;
@@ -207,42 +207,22 @@ char *CDLISParser::Attr2String(DlisAttribute *attr, char *buf, size_t buf_len)
         case RC_SSHORT:                        // 1 	Short signed integer
         case RC_SNORM:                         // 2 	Normal signed integer
         case RC_SLONG:                         // 4 	Long signed integer
-            {
-                int  val = 0;
-                int  len = 1; 
-                
-                if (attr->code == RC_SNORM) 
-                    len = 2;
-                else if (attr->code == RC_SLONG)
-                    len = 4;
-                else
-                    len = 1;
-
-                memcpy(&val, attr->value->data, len);
-                Big2LittelEndian(&val, len);
-                _itoa_s(val, buf, buf_len, 10);
-            }
-            break; 
-
         case RC_USHORT:                        // 1 	Short unsigned integer
         case RC_UNORM:                         // 2 	Normal unsigned integer
         case RC_ULONG:                         // 4 	Long unsigned integer
             {
-                long  val = 0;
-                int   len = 1; 
+                unsigned int val = 0;
+                int          len = 1; 
+               
+                len = s_rep_codes_length[attr->code - 1].length; 
                 
-                if (attr->code == RC_SNORM) 
-                    len = 2;
-                else if (attr->code == RC_SLONG)
-                    len = 4;
-                else
-                    len = 1;
-
                 memcpy(&val, attr->value->data, len);
-                Big2LittelEndian(&val, len);
-                _ltoa_s(val, buf, buf_len, 10);
+                if (attr->code >= RC_SSHORT && attr->code <= RC_SLONG)
+                    _itoa_s(val, buf, buf_len, 10);
+                else
+                    _ltoa_s((long)val, buf, buf_len, 10);
             }
-            break;
+            break; 
 
         case RC_FSINGL:                     
         case RC_FDOUBL:
@@ -253,13 +233,11 @@ char *CDLISParser::Attr2String(DlisAttribute *attr, char *buf, size_t buf_len)
                 if (attr->code == RC_FSINGL)
                 {
                     memcpy(&val, attr->value->data, sizeof(float));
-                    Big2LittelEndian(&val, sizeof(float));
                     val_d = val;
                 }
                 else
                 {
                     memcpy(&val_d, attr->value->data, sizeof(double));
-                    Big2LittelEndian(&val_d, sizeof(double));
                 }
                 sprintf_s(buf, buf_len, "%.2f", val_d);
             }
@@ -607,7 +585,11 @@ bool CDLISParser::SegmentProcess()
             r = ComponentRead();
         }
     }
-   
+    else
+    {
+        int k = 0;
+
+    }
     return r;
 
 }
@@ -813,6 +795,22 @@ bool CDLISParser::ReadCodeSimple(RepresentaionCodes code, void **dst, size_t *le
     if (type_len > 0)
     {
         ReadRawData(buf, type_len);
+        switch(code)
+        {
+            case RC_SSHORT: 
+            case RC_SNORM:  
+            case RC_SLONG:  
+            case RC_USHORT: 
+            case RC_UNORM:  
+            case RC_ULONG:  
+            case RC_FSINGL:
+            case RC_FDOUBL:
+                Big2LittelEndian(buf, type_len);
+                break;
+
+            default:
+                break;
+        }
         
         *dst = buf;
         *len = type_len;

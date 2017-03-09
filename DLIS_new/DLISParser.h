@@ -141,7 +141,7 @@ public:
     
     DlisSet        *GetRoot()     {  return m_sets;  }
 
-    char           *Attr2String(DlisAttribute *attr, char *buf, size_t buf_len);
+    char           *AttrGetValue(DlisAttribute *attr, char *buf, size_t buf_len);
 
 private:
     //  чтение файла
