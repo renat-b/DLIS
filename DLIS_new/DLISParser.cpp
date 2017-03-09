@@ -90,7 +90,7 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] =
 CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), m_template_attributes_count(0), 
     m_attributes_count(0), m_sets(NULL), m_set(NULL), m_object(NULL), m_attribute(NULL), m_column(NULL),
     m_last_set(NULL), m_last_object(NULL), m_last_column(NULL), m_last_attribute(NULL),
-    m_pull_id_strings(0), m_pull_id_objects(0)
+    m_pull_id_strings(0), m_pull_id_objects(0), m_frame(NULL)
 {
     m_object_num = 0;
 
@@ -131,11 +131,11 @@ bool CDLISParser::Parse(const char *file_name)
     if (!ReadLogicalFiles())
         return false;
 
-    CDLISPrint debug_print;
+    // CDLISPrint debug_print;
 
-    debug_print.Initialize();
-    debug_print.Print(this);
-    debug_print.Shutdown();
+    // debug_print.Initialize();
+    // debug_print.Print(this);
+    // debug_print.Shutdown();
 
     return true;
 }
@@ -145,11 +145,11 @@ bool CDLISParser::Initialize()
 {
     memset(&m_file_chunk, 0, sizeof(m_file_chunk)); 
 
-    m_pull_id_strings = m_allocator.PullCreate(32 * 1024);
+    m_pull_id_strings = m_allocator.PullCreate(512 * 1024 /** 1024*/);
     if (m_pull_id_strings == 0)
         return false;
 
-    m_pull_id_objects = m_allocator.PullCreate(128 * 1024);
+    m_pull_id_objects = m_allocator.PullCreate(512 * 1024/* * 1024*/);
     if (m_pull_id_objects == 0)
         return false;
 
@@ -496,7 +496,6 @@ bool CDLISParser::BufferIsEOF()
     return (m_file_chunk.remaind == 0 && m_file_chunk.file_remaind == 0);
 }
 
-
 /*
 *  получаем следующий сегмент данных 
 */
@@ -559,6 +558,7 @@ bool CDLISParser::SegmentGet()
 */
 bool CDLISParser::SegmentProcess()
 {
+
     bool r = true;
 
     if (m_segment_header.attributes & Logical_Record_Structure)
@@ -587,7 +587,8 @@ bool CDLISParser::SegmentProcess()
     }
     else
     {
-        int k = 0;
+        if ( !(m_segment_header.attributes & Predecessor))
+            r = ReadIndirectlyFormattedLogicalRecord();
 
     }
     return r;
@@ -956,7 +957,46 @@ bool CDLISParser::ReadCodeComplex(RepresentaionCodes code, void *dst)
 }
 
 
+/*
+*
+*/
+bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
+{
+    static int count = 0;
 
+    count++;
+
+
+    DlisFrameData *frame;
+
+    frame = (DlisFrameData *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisFrameData));
+    if (!frame)
+        return false;
+    
+    memset(frame, 0, sizeof(DlisFrameData));
+
+    bool r;
+    
+    r = ReadCodeComplex(RC_OBNAME, &frame->obj_name);
+    if (!r)
+        return false;
+
+    //DlisFrameData **next;
+    
+    //next = &m_frame;
+    //while (*next)
+    //{
+    //    next = &((*next)->next);
+    //}
+
+    //*next = frame;
+
+    return true;
+}
+
+/*
+*
+*/
 bool CDLISParser::ReadAttributeValue(DlisValue *attr_val, RepresentaionCodes code, int type)
 {
     char    *val;

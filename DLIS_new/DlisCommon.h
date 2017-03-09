@@ -222,3 +222,10 @@ struct DlisSet
     DlisSet         *next;
     DlisSet         *childs;
 };
+
+
+struct DlisFrameData
+{
+    DlisValueObjName   obj_name;
+    DlisFrameData     *next;
+};

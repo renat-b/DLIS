@@ -121,6 +121,8 @@ private:
     DlisAttribute     *m_last_attribute;
     DlisAttribute     *m_last_column;
 
+    DlisFrameData     *m_frame;
+
     CDLISAllocator     m_allocator;
     size_t             m_pull_id_strings;
     size_t             m_pull_id_objects;
@@ -179,6 +181,7 @@ private:
     bool            ReadCodeSimple(RepresentaionCodes code, void **dst, size_t *len, int count = 1);
     bool            ReadCodeComplex(RepresentaionCodes code, void *dst);
 
+    bool            ReadIndirectlyFormattedLogicalRecord();
     // чтение атрибутов компонента DLIS
     bool            ReadSet();
     bool            ReadObject();
