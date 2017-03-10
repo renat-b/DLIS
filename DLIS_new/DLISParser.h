@@ -113,6 +113,7 @@ private:
     DlisObject        **m_object;
     DlisAttribute     **m_attribute;
     DlisAttribute     **m_column;
+    DlisFrameData     **m_frame;
 
     // актуальные (созданные последними) объекты  
     // нужны для быстрого заполнения свойств объектов при построении дерева DLIS
@@ -120,8 +121,7 @@ private:
     DlisObject        *m_last_object;
     DlisAttribute     *m_last_attribute;
     DlisAttribute     *m_last_column;
-
-    DlisFrameData     *m_frame;
+    DlisFrameData     *m_last_frame;
 
     CDLISAllocator     m_allocator;
     size_t             m_pull_id_strings;
@@ -193,7 +193,9 @@ private:
     void            ObjectAdd(DlisObject *obj);
     void            ColumnAdd(DlisAttribute *obj);
     void            AttributeAdd(DlisAttribute *obj);
-    
+    void            FrameAdd(DlisFrameData *frame); 
+    bool            ObjectNameCompare(DlisValueObjName *left, DlisValueObjName *rigth);
+
     void            FlagsParserSet(UINT flag);
     void            FlagAttrSet(UINT flag);
 

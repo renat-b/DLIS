@@ -90,7 +90,7 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] =
 CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), m_template_attributes_count(0), 
     m_attributes_count(0), m_sets(NULL), m_set(NULL), m_object(NULL), m_attribute(NULL), m_column(NULL),
     m_last_set(NULL), m_last_object(NULL), m_last_column(NULL), m_last_attribute(NULL),
-    m_pull_id_strings(0), m_pull_id_objects(0), m_frame(NULL)
+    m_pull_id_strings(0), m_pull_id_objects(0), m_frame(NULL), m_last_frame(NULL)
 {
     m_object_num = 0;
 
@@ -145,11 +145,11 @@ bool CDLISParser::Initialize()
 {
     memset(&m_file_chunk, 0, sizeof(m_file_chunk)); 
 
-    m_pull_id_strings = m_allocator.PullCreate(512 * 1024 /** 1024*/);
+    m_pull_id_strings = m_allocator.PullCreate(32 * 1024 /** 1024*/);
     if (m_pull_id_strings == 0)
         return false;
 
-    m_pull_id_objects = m_allocator.PullCreate(512 * 1024/* * 1024*/);
+    m_pull_id_objects = m_allocator.PullCreate(128 * 1024/* * 1024*/);
     if (m_pull_id_objects == 0)
         return false;
 
@@ -798,14 +798,14 @@ bool CDLISParser::ReadCodeSimple(RepresentaionCodes code, void **dst, size_t *le
         ReadRawData(buf, type_len);
         switch(code)
         {
-            case RC_SSHORT: 
-            case RC_SNORM:  
-            case RC_SLONG:  
-            case RC_USHORT: 
-            case RC_UNORM:  
-            case RC_ULONG:  
-            case RC_FSINGL:
-            case RC_FDOUBL:
+            case  RC_SSHORT: 
+            case  RC_SNORM:  
+            case  RC_SLONG:  
+            case  RC_USHORT: 
+            case  RC_UNORM:  
+            case  RC_ULONG:  
+            case  RC_FSINGL:
+            case  RC_FDOUBL:
                 Big2LittelEndian(buf, type_len);
                 break;
 
@@ -826,9 +826,9 @@ bool CDLISParser::ReadCodeSimple(RepresentaionCodes code, void **dst, size_t *le
         case RC_ASCII:
         case RC_UNITS:
             {
-                size_t    count;
-                void     *ptr;
-                UINT      str_len = 0;
+                size_t   count;
+                void    *ptr;
+                UINT     str_len = 0;
                 // в зависимости от code сначала читаем размер данных        
                 if (code == RC_ASCII)
                     ReadCodeSimple(RC_UVARI,  &ptr, &count);
@@ -956,15 +956,26 @@ bool CDLISParser::ReadCodeComplex(RepresentaionCodes code, void *dst)
     return true;
 }
 
-
 /*
 *
 */
 bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
-{
-    static int count = 0;
+{                
+    static char       buf[128];
+    char             *src;
+    size_t            len, len_str;
+    DlisValueObjName  obj_name = { 0 };
+    
 
-    count++;
+    ReadCodeSimple(RC_ORIGIN, (void **)&src, &len);
+    memcpy(&obj_name.origin_reference, src, len);
+
+    ReadCodeSimple(RC_USHORT, (void **)&src, &len);
+    memcpy(&obj_name.copy_number, src, len); 
+
+    ReadCodeSimple(RC_IDENT, (void **)&src, &len_str);
+    strcpy_s(buf, len_str + 1, src);
+    obj_name.identifier = buf;
 
 
     DlisFrameData *frame;
@@ -972,24 +983,23 @@ bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
     frame = (DlisFrameData *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisFrameData));
     if (!frame)
         return false;
-    
+
     memset(frame, 0, sizeof(DlisFrameData));
 
-    bool r;
-    
-    r = ReadCodeComplex(RC_OBNAME, &frame->obj_name);
-    if (!r)
-        return false;
+    if (m_last_frame && ObjectNameCompare(&obj_name, &(m_last_frame->obj_name)))
+    {
+        frame->obj_name.identifier = m_last_frame->obj_name.identifier;
+    }
+    else
+    {
+        frame->obj_name.identifier = m_allocator.MemoryGet(m_pull_id_strings, len_str + 1);
 
-    //DlisFrameData **next;
-    
-    //next = &m_frame;
-    //while (*next)
-    //{
-    //    next = &((*next)->next);
-    //}
+        strcpy_s(frame->obj_name.identifier, len_str + 1, obj_name.identifier);
+        frame->obj_name.copy_number      = obj_name.copy_number;
+        frame->obj_name.origin_reference = obj_name.origin_reference;
+    }
 
-    //*next = frame;
+    FrameAdd(frame);
 
     return true;
 }
@@ -1075,8 +1085,7 @@ bool CDLISParser::ReadAttributeValue(DlisValue *attr_val, RepresentaionCodes cod
 
 void CDLISParser::SetAdd(DlisSet *set)
 {
-    // первый сегмент в логическом файле, создаем новый логический файл, смещаемся по childs 
-    if (m_state & STATE_FIRST_SEGMEN_LOGICAL_FILE)
+    if (set->type_set == FHLR)
     {
         m_set = &m_sets;
         
@@ -1085,26 +1094,48 @@ void CDLISParser::SetAdd(DlisSet *set)
             m_set = &(*m_set)->next;
         }
 
-        FlagAttrSet(STATE_SECOND_SEGMENT_LOGICAL_FILE);
-
-        *m_set   = set;
-        m_set    = &(*m_set)->childs;
-    }
-    else if (m_state & STATE_SECOND_SEGMENT_LOGICAL_FILE)
-    {
         *m_set  = set;
-        
-        FlagAttrSet(0);
-        m_set    = &(*m_set)->next;
+        m_set   = &(*m_set)->childs;
+
+        m_frame = &(set)->frame;
     }
     else
     {
         *m_set = set;
-        m_set  = &(*m_set)->next;
+        m_set  = &(*m_set)->next; 
     }
 
-    m_column = &(set->colums);
-    m_object = &(set->objects);
+    // первый сегмент в логическом файле, создаем новый логический файл, смещаемся по childs 
+    //if (m_state & STATE_FIRST_SEGMEN_LOGICAL_FILE)
+    //{
+    //    m_set = &m_sets;
+    //    
+    //    while (*m_set)
+    //    {
+    //        m_set = &(*m_set)->next;
+    //    }
+
+    //    FlagAttrSet(STATE_SECOND_SEGMENT_LOGICAL_FILE);
+
+    //    *m_set   = set;
+    //    m_set    = &(*m_set)->childs;
+    //}
+    //else if (m_state & STATE_SECOND_SEGMENT_LOGICAL_FILE)
+    //{
+    //    *m_set  = set;
+    //    
+    //    FlagAttrSet(0);
+    //    m_set    = &(*m_set)->next;
+    //}
+    //else
+    //{
+    //    *m_set = set;
+    //    m_set  = &(*m_set)->next;
+    //}
+
+    m_last_set = set;
+    m_column   = &(set->colums);
+    m_object   = &(set->objects);
 }
 
 
@@ -1128,6 +1159,31 @@ void CDLISParser::AttributeAdd(DlisAttribute *attribute)
 {
     *m_attribute = attribute;
     m_attribute  = &(*m_attribute)->next;
+}
+
+/*
+* 
+*/
+void CDLISParser::FrameAdd(DlisFrameData *frame)
+{
+    *m_frame      = frame;
+
+     m_frame      = &(frame->next);
+     m_last_frame = frame;
+}
+
+/*
+* 
+*/
+bool CDLISParser::ObjectNameCompare(DlisValueObjName *left, DlisValueObjName *rigth)
+{
+    bool r;
+
+    r = strcmp(left->identifier, rigth->identifier) == 0;
+    if (r)
+        r = left->origin_reference == rigth->origin_reference;
+
+    return r;
 }
 
 /*
@@ -1202,9 +1258,11 @@ DlisAttribute *CDLISParser::AttrRepresentationCodeFind(DlisSet *set, DlisObject 
 */
 bool CDLISParser::ReadSet()
 {
-    char       *val;
-    size_t      len;
-    
+    char      *val;
+    size_t     len;
+    DlisSet   *set;
+   
+
     FlagsParserSet(STATE_PARSER_SET);
     m_object_num                =   0;
     m_attributes_count          =   0;
@@ -1212,34 +1270,38 @@ bool CDLISParser::ReadSet()
 
     memset(&m_template_attributes, 0, sizeof(m_template_attributes));
 
-    m_last_set = (DlisSet *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisSet));
-    if (!m_last_set)
+    set = (DlisSet *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisSet));
+    if (!set)
         return false;
 
-    memset(m_last_set, 0, sizeof(DlisSet));
-    SetAdd(m_last_set);
+    memset(set, 0, sizeof(DlisSet));
+
+    set->type_set = m_segment_header.type;
 
     if (m_component_header.format & TypeSet::TypeSetType)
     {
         ReadCodeSimple(RC_IDENT, (void **)&val, &len);
         
-        m_last_set->type = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
-        if (!m_last_set->type)
+        set->type = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+        if (!set->type)
             return false;
         
-        strcpy_s(m_last_set->type, len + 1, val);
+        strcpy_s(set->type, len + 1, val);
     }
 
     if (m_component_header.format & TypeSet::TypeSetName)
     {
         ReadCodeSimple(RC_IDENT, (void **)&val, &len);
 
-        m_last_set->name = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
-        if (!m_last_set->name)
+        set->name = m_allocator.MemoryGet(m_pull_id_strings, len + 1);
+        if (!set->name)
             return false;
         
-        strcpy_s(m_last_set->name, len + 1, val);
+        strcpy_s(set->name, len + 1, val);
     }
+
+    SetAdd(set);
+
     return true;
 }
 
@@ -1253,13 +1315,12 @@ bool CDLISParser::ReadObject()
     m_last_object = (DlisObject *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisObject));
     memset(m_last_object, 0, sizeof(DlisObject));
 
-    ObjectAdd(m_last_object);
-
     if (m_component_header.format & TypeObject::TypeObjectName)
     {
         ReadCodeComplex(RC_OBNAME, (void **)&m_last_object->name);
     }
 
+    ObjectAdd(m_last_object);
     return true;
 }
 

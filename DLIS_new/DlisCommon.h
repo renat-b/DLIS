@@ -210,22 +210,24 @@ struct DlisObject
 };
 
 
-struct DlisSet
-{
-    char            *name;
-    char            *type;
-    //
-    DlisAttribute   *colums;
-    size_t           count;
-    DlisObject      *objects;
-
-    DlisSet         *next;
-    DlisSet         *childs;
-};
-
-
 struct DlisFrameData
 {
     DlisValueObjName   obj_name;
     DlisFrameData     *next;
+};
+
+
+struct DlisSet
+{
+    char            *name;
+    char            *type;
+    unsigned short   type_set;
+    //
+    DlisAttribute   *colums;
+    size_t           count;
+    DlisObject      *objects;
+    DlisFrameData   *frame;
+
+    DlisSet         *next;
+    DlisSet         *childs;
 };
