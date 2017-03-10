@@ -227,6 +227,7 @@ struct DlisSet
     size_t           count;
     DlisObject      *objects;
     DlisFrameData   *frame;
+    int              frame_count;
 
     DlisSet         *next;
     DlisSet         *childs;

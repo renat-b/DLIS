@@ -493,7 +493,13 @@ bool CDLISParser::BufferInitialize()
 */
 bool CDLISParser::BufferIsEOF()
 {
-    return (m_file_chunk.remaind == 0 && m_file_chunk.file_remaind == 0);
+    bool r;
+    
+    r = m_visible_record.end <= m_visible_record.current;
+    if (r)
+        r = m_file_chunk.remaind == 0 && m_file_chunk.file_remaind == 0;
+
+    return (r);
 }
 
 /*
@@ -657,18 +663,18 @@ bool CDLISParser::ReadStorageUnitLabel()
 */
 bool CDLISParser::ReadLogicalFiles()
 {
-    bool r = SegmentGet();
+    bool r = true;
         
     while (r)
     {
-        //
-        if (BufferIsEOF()) 
-            break;
-
-        r = SegmentProcess(); 
+        r = SegmentGet();
 
         if (r)
-            r = SegmentGet();
+            r = SegmentProcess();
+
+        if (r)
+            if (BufferIsEOF())
+                break;
     }
 
     return r;
@@ -1166,10 +1172,22 @@ void CDLISParser::AttributeAdd(DlisAttribute *attribute)
 */
 void CDLISParser::FrameAdd(DlisFrameData *frame)
 {
-    *m_frame      = frame;
+   *m_frame      = frame;
 
-     m_frame      = &(frame->next);
-     m_last_frame = frame;
+    m_frame      = &(frame->next);
+    m_last_frame = frame;
+
+    DlisSet *set_file_header;
+
+    set_file_header = m_sets;
+    while (set_file_header)
+    {
+        if (set_file_header->next)
+            set_file_header = set_file_header->next;
+        else
+            break;
+    }
+    set_file_header->frame_count++;
 }
 
 /*
