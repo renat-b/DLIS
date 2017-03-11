@@ -222,7 +222,7 @@ void CDLISPrint::WalkTreePrintAttr(DlisAttribute *attr, WalkTreeParams *params)
     if (params->flags == FLAG_SET)
         str = attr->label;
     else
-        str = m_parser->AttrGetValue(attr, format_str, sizeof(format_str));
+        str = m_parser->AttrGetString(attr, format_str, sizeof(format_str));
 
     printf("  ");
     printf("%s", str);

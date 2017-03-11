@@ -30,6 +30,7 @@ private:
         Mb         = Kb * Kb,
         FILE_CHUNK = 16 * Mb,
 
+        MAX_ATTRIBUTE_LABEL       = 64,
         MAX_TEMPLATE_ATTRIBUTES   = 32,
         //
         STATE_PARSER_FIRST        = 0x00,
@@ -38,9 +39,6 @@ private:
         STATE_PARSER_TEMPLATE_ATTRIBUTE = 0x04,
         STATE_PARSER_ATTRIBUTE    = 0x08, 
         STATE_PARSER_ALL          = STATE_PARSER_SET | STATE_PARSER_OBJECT | STATE_PARSER_TEMPLATE_ATTRIBUTE | STATE_PARSER_ATTRIBUTE,
-
-        STATE_FIRST_SEGMEN_LOGICAL_FILE   = 0x10,
-        STATE_SECOND_SEGMENT_LOGICAL_FILE = 0x20,        
         //
         REP_CODE_VARIABLE_SIMPLE  = -1,
         REP_CODE_VARIABLE_COMPLEX = -2,
@@ -48,13 +46,13 @@ private:
     
     struct TemplateAttributes
     {
-        RepresentaionCodes  code;
+        RepresentationCodes  code;
         UINT                count;
     };
 
     struct RepresentaionCodesLenght
     {
-        RepresentaionCodes  code;
+        RepresentationCodes  code;
         int                 length;
     };
 
@@ -91,6 +89,19 @@ private:
         size_t           len;
     };
     
+    struct ChannelInfo
+    {
+        RepresentationCodes  code;
+        short                dimension;
+    };
+
+    struct FrameData
+    {
+        DlisValueObjName  obj_key;
+        ChannelInfo       channels[32];
+        int               channel_count; 
+    };
+
 
     VisibleRecord      m_visible_record;
     SegmentRecord      m_segment;
@@ -98,26 +109,23 @@ private:
     SegmentHeader      m_segment_header;
     ComponentHeader    m_component_header;
 
+    FrameData          m_frame_data;
+
     UINT               m_state;
-
-    TemplateAttributes m_template_attributes[MAX_TEMPLATE_ATTRIBUTES];
-    UINT               m_template_attributes_count;
-    UINT               m_attributes_count;
-    UINT               m_object_num;
-
     // корневой узел (root)
     DlisSet           *m_sets;
     // содержат адреса последних (next) узлов в дереве
     // необходимы для быстрой вставки в дерево DLIS
-    DlisSet           **m_set;
-    DlisObject        **m_object;
-    DlisAttribute     **m_attribute;
-    DlisAttribute     **m_column;
-    DlisFrameData     **m_frame;
+    DlisSet           **m_set_tail;
+    DlisObject        **m_object_tail;
+    DlisAttribute     **m_attribute_tail;
+    DlisAttribute     **m_column_tail;
+    DlisFrameData     **m_frame_tail;
 
     // актуальные (созданные последними) объекты  
     // нужны для быстрого заполнения свойств объектов при построении дерева DLIS
     DlisSet           *m_last_set;
+	DlisSet			  *m_last_root_set;
     DlisObject        *m_last_object;
     DlisAttribute     *m_last_attribute;
     DlisAttribute     *m_last_column;
@@ -143,7 +151,8 @@ public:
     
     DlisSet        *GetRoot()     {  return m_sets;  }
 
-    char           *AttrGetValue(DlisAttribute *attr, char *buf, size_t buf_len);
+    char           *AttrGetString(DlisAttribute *attr, char *buf, size_t buf_len);
+    int             AttrGetInt(DlisAttribute *attr);
 
 private:
     //  чтение файла
@@ -178,8 +187,8 @@ private:
 
     // чтение сырых данных DLIS
     bool            ReadRawData(void *dst, size_t len);
-    bool            ReadCodeSimple(RepresentaionCodes code, void **dst, size_t *len, int count = 1);
-    bool            ReadCodeComplex(RepresentaionCodes code, void *dst);
+    bool            ReadCodeSimple(RepresentationCodes code, void **dst, size_t *len, int count = 1);
+    bool            ReadCodeComplex(RepresentationCodes code, void *dst);
 
     bool            ReadIndirectlyFormattedLogicalRecord();
     // чтение атрибутов компонента DLIS
@@ -187,7 +196,7 @@ private:
     bool            ReadObject();
     bool            ReadAttribute();
 
-    bool            ReadAttributeValue(DlisValue *attr_val, RepresentaionCodes code, int type);
+    bool            ReadAttributeValue(DlisValue *attr_val, RepresentationCodes code, int type);
 
     void            SetAdd(DlisSet *set);
     void            ObjectAdd(DlisObject *obj);
@@ -197,11 +206,15 @@ private:
     bool            ObjectNameCompare(DlisValueObjName *left, DlisValueObjName *rigth);
 
     void            FlagsParserSet(UINT flag);
-    void            FlagAttrSet(UINT flag);
-
     char           *StringTrim(char *str, size_t *len);
-    DlisAttribute  *AttrRepresentationCodeFind(DlisSet *set, DlisObject *object, DlisAttribute *attr);
+
+    DlisAttribute  *FindColumnTemplate(DlisSet *set, DlisObject *object, DlisAttribute *attr);
+    DlisAttribute  *FindAttribute(DlisSet *set, DlisObject *object, char *name_column);
+    DlisSet        *FindSubSet(char *name_sub_set, DlisSet *root);
+    DlisObject     *FindObject(DlisValueObjName *obj, DlisSet *set);
+
+    bool            BuildFrameData(DlisValueObjName *obj_name);
     // распечатка code representation
-    void            DebugPrintRepCode(RepresentaionCodes code, char *str_rep_code, size_t size);
+    void            DebugPrintRepCode(RepresentationCodes code, char *str_rep_code, size_t size);
     void            DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t size);
 };

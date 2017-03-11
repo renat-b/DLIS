@@ -99,7 +99,7 @@ enum LogicalRecordSegmentAttributes
 };
 
 
-enum RepresentaionCodes
+enum RepresentationCodes
 {
     RC_FSHORT = 1,                          // 2 	Low precision floating point
     RC_FSINGL = 2,                          // 4 	IEEE single precision floating point
@@ -166,7 +166,7 @@ struct DlisAttribute
     // колво данных
     size_t              count;
     // тип значения
-    RepresentaionCodes  code;
+    RepresentationCodes  code;
     // единца измерения
     char               *units;
     // значения
@@ -224,7 +224,6 @@ struct DlisSet
     unsigned short   type_set;
     //
     DlisAttribute   *colums;
-    size_t           count;
     DlisObject      *objects;
     DlisFrameData   *frame;
     int              frame_count;
