@@ -91,6 +91,7 @@ private:
     
     struct ChannelInfo
     {
+        DlisValueObjName    *obj_name;
         RepresentationCodes  code;
         short                dimension;
     };
@@ -187,7 +188,7 @@ private:
 
     // чтение сырых данных DLIS
     bool            ReadRawData(void *dst, size_t len);
-    bool            ReadCodeSimple(RepresentationCodes code, void **dst, size_t *len, int count = 1);
+    bool            ReadCodeSimple(RepresentationCodes code, void **dst, size_t *len);
     bool            ReadCodeComplex(RepresentationCodes code, void *dst);
 
     bool            ReadIndirectlyFormattedLogicalRecord();
@@ -213,7 +214,8 @@ private:
     DlisSet        *FindSubSet(char *name_sub_set, DlisSet *root);
     DlisObject     *FindObject(DlisValueObjName *obj, DlisSet *set);
 
-    bool            BuildFrameData(DlisValueObjName *obj_name);
+    bool            FrameDataBuild(DlisValueObjName *obj_name);
+    bool            FrameDataParse();
     // распечатка code representation
     void            DebugPrintRepCode(RepresentationCodes code, char *str_rep_code, size_t size);
     void            DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t size);

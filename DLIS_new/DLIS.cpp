@@ -18,7 +18,7 @@ int main()
     CDLISParser  parser;
 
     parser.Initialize();
-    parser.Parse("../Dlis_examples/Sample2.dlis");
+    parser.Parse("../Dlis_examples/TestEWLDlis_1485963328769.dlis");
 
     if (g_global_log->IsCompareFilesMode())
         g_global_log->Close();
