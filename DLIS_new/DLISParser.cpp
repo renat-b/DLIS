@@ -612,8 +612,8 @@ bool CDLISParser::SegmentProcess()
     }
     else
     {
-        //if ( !(m_segment_header.attributes & Predecessor))
-        r = ReadIndirectlyFormattedLogicalRecord();
+        if ( !(m_segment_header.attributes & Predecessor))
+            r = ReadIndirectlyFormattedLogicalRecord();
 
     }
     return r;
@@ -1030,7 +1030,8 @@ bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
 
     if ( !ObjectNameCompare(&obj_name, &(m_frame_data.obj_key)))
     {
-        FrameDataBuild(&obj_name);
+        if (!FrameDataBuild(&obj_name))
+            return false;
     }
 
     FrameDataParse();
@@ -1205,6 +1206,8 @@ bool CDLISParser::ObjectNameCompare(DlisValueObjName *left, DlisValueObjName *ri
     r = strcmp(left->identifier, rigth->identifier) == 0;
     if (r)
         r = left->origin_reference == rigth->origin_reference;
+    if (r)
+        r = left->copy_number == rigth->copy_number;
 
     return r;
 }
@@ -1416,7 +1419,7 @@ bool CDLISParser::FrameDataParse()
     static char   buf[8 * Kb];
 
     void         *dst;
-    size_t        len;
+    size_t        len, all_size = 0;
 
     int           count;
     ChannelInfo  *channel;
@@ -1429,10 +1432,15 @@ bool CDLISParser::FrameDataParse()
 
     while (m_segment.len)
     {
+        if (all_size != 0)
+        {
+            if (all_size > m_segment.len)
+                break;
+        }
 
-        channel = &m_frame_data.channels[0];
-        count   = m_frame_data.channel_count;
-
+        channel  = &m_frame_data.channels[0];
+        count    = m_frame_data.channel_count;
+        all_size = 0;
         for (int i = 0; i < count; i++)
         {
             char *ptr;
@@ -1442,7 +1450,8 @@ bool CDLISParser::FrameDataParse()
             {
                 ReadCodeSimple(channel->code, &dst, &len);
                 memcpy(ptr, dst, len);
-                ptr += len;
+                ptr      += len;
+                all_size += len;
             }
 
             float *val;

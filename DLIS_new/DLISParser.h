@@ -99,7 +99,7 @@ private:
     struct FrameData
     {
         DlisValueObjName  obj_key;
-        ChannelInfo       channels[32];
+        ChannelInfo       channels[256];
         int               channel_count; 
     };
 
