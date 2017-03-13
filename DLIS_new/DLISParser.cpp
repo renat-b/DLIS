@@ -99,7 +99,6 @@ CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_
     memset(&m_visible_record,      0, sizeof(m_visible_record));
     memset(&m_segment_header,      0, sizeof(m_segment_header));
     memset(&m_component_header,    0, sizeof(m_component_header));
-    memset(&m_frame_data2,          0, sizeof(FrameData));
 }
 
 
@@ -158,12 +157,6 @@ bool CDLISParser::Initialize()
 
     m_set_tail = &m_sets;
 
-    m_frame_data2.obj_key.identifier = new(std::nothrow) char[MAX_ATTRIBUTE_LABEL];
-    if (!m_frame_data2.obj_key.identifier)
-        return false;
-    
-    m_frame_data2.obj_key.identifier[0] = 0;
-
     return true;
 }
 
@@ -176,8 +169,6 @@ void CDLISParser::Shutdown()
     memset(&m_file_chunk, 0, sizeof(m_file_chunk));
 
     m_allocator.PullFreeAll();
-
-    delete m_frame_data2.obj_key.identifier;
 }
 
 
@@ -1386,12 +1377,13 @@ CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
     ChannelInfo  *channel_info;
 
 
-    frame_data->channel_count = 0;
-
     channel_info = (ChannelInfo *)m_allocator.MemoryGet(m_pull_id_frame_data, sizeof(ChannelInfo) * attr->count);
     if (!channel_info)
         return NULL;
-    
+
+    frame_data->channel_count = 0;   
+    frame_data->channels      = channel_info;
+
     val = attr->value;
     while (count < attr->count)
     {
@@ -1455,15 +1447,12 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
     static char   buf[8 * Kb];
 
     void         *dst;
-    size_t        len, all_size = 0;
-    size_t        count_frame   = 0;
+    size_t        len         = 0;
+    int           count_frame = 0;
 
     int           count;
     ChannelInfo  *channel;
 
-    channel = frame->channels;
-    count   = frame->channel_count;
-    
     ReadCodeSimple(RC_UVARI, &dst, &len);
     memcpy(&count_frame, dst, len);
 
@@ -1472,15 +1461,8 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
 
     while (count_frame)
     {
-        if (all_size != 0)
-        {
-            if (all_size > m_segment.len)
-                break;
-        }
-
-        channel  = &m_frame_data2.channels[0];
-        count    = m_frame_data2.channel_count;
-        all_size = 0;
+        channel  = frame->channels;
+        count    = frame->channel_count;
         for (int i = 0; i < count; i++)
         {
             char *ptr;
@@ -1491,7 +1473,6 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
                 ReadCodeSimple(channel->code, &dst, &len);
                 memcpy(ptr, dst, len);
                 ptr      += len;
-                all_size += len;
             }
 
             float *val;
@@ -1500,6 +1481,7 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
 
             channel++;
         }
+        count_frame--;
     }
     return true;
 }
