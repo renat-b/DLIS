@@ -1447,41 +1447,40 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
     static char   buf[8 * Kb];
 
     void         *dst;
-    size_t        len         = 0;
-    int           count_frame = 0;
+    size_t        len          = 0;
+    int           number_frame = 0;
 
     int           count;
     ChannelInfo  *channel;
 
-    ReadCodeSimple(RC_UVARI, &dst, &len);
-    memcpy(&count_frame, dst, len);
-
-    // m_segment.current += 1;
-    // m_segment.len     -= 1;
-
-    while (count_frame)
+    while(m_segment.len)
     {
+        ReadCodeSimple(RC_UVARI, &dst, &len);
+        memcpy(&number_frame, dst, len);
+
         channel  = frame->channels;
         count    = frame->channel_count;
+
         for (int i = 0; i < count; i++)
         {
-            char *ptr;
+            // ReadRawData(buf, channel->dimension * 8);
+             char *ptr;
 
-            ptr = &buf[0];
-            for (int j = 0; j < channel->dimension; j++)
-            {
-                ReadCodeSimple(channel->code, &dst, &len);
-                memcpy(ptr, dst, len);
-                ptr      += len;
-            }
+             ptr = &buf[0];
+             for (int j = 0; j < channel->dimension; j++)
+             {
+                 ReadCodeSimple(channel->code, &dst, &len);
+                 memcpy(ptr, dst, len);
+                 ptr      += len;
+             }
 
-            float *val;
+             float *val;
 
-            val = (float *)buf;
+             val = (float *)buf;
 
             channel++;
         }
-        count_frame--;
+        // count_frame--;
     }
     return true;
 }
