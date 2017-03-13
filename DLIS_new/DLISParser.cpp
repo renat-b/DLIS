@@ -88,9 +88,10 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] =
 
 
 CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), 
-    m_sets(NULL), m_set_tail(NULL), m_object_tail(NULL), m_attribute_tail(NULL), m_column_tail(NULL),
+    m_sets(NULL), m_set_tail(NULL), m_object_tail(NULL), m_attribute_tail(NULL), m_column_tail(NULL),m_frame_tail(NULL),
     m_last_set(NULL), m_last_root_set(NULL), m_last_object(NULL), m_last_column(NULL), m_last_attribute(NULL),
-    m_pull_id_strings(0), m_pull_id_objects(0), m_frame_tail(NULL), m_last_frame(NULL)
+    m_pull_id_strings(0), m_pull_id_objects(0), m_pull_id_frame_data(0), 
+    m_last_frame(NULL), m_frame_data(NULL)
 {
     memset(&m_segment,             0, sizeof(m_segment));
     memset(&m_storage_unit_label,  0, sizeof(m_storage_unit_label));
@@ -98,7 +99,7 @@ CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_
     memset(&m_visible_record,      0, sizeof(m_visible_record));
     memset(&m_segment_header,      0, sizeof(m_segment_header));
     memset(&m_component_header,    0, sizeof(m_component_header));
-    memset(&m_frame_data,          0, sizeof(FrameData));
+    memset(&m_frame_data2,          0, sizeof(FrameData));
 }
 
 
@@ -151,13 +152,17 @@ bool CDLISParser::Initialize()
     if (m_pull_id_objects == 0)
         return false;
 
+    m_pull_id_frame_data = m_allocator.PullCreate(32 * Kb);
+    if (m_pull_id_frame_data == 0)
+        return false;
+
     m_set_tail = &m_sets;
 
-    m_frame_data.obj_key.identifier = new(std::nothrow) char[MAX_ATTRIBUTE_LABEL];
-    if (!m_frame_data.obj_key.identifier)
+    m_frame_data2.obj_key.identifier = new(std::nothrow) char[MAX_ATTRIBUTE_LABEL];
+    if (!m_frame_data2.obj_key.identifier)
         return false;
     
-    m_frame_data.obj_key.identifier[0] = 0;
+    m_frame_data2.obj_key.identifier[0] = 0;
 
     return true;
 }
@@ -172,7 +177,7 @@ void CDLISParser::Shutdown()
 
     m_allocator.PullFreeAll();
 
-    delete m_frame_data.obj_key.identifier;
+    delete m_frame_data2.obj_key.identifier;
 }
 
 
@@ -1026,17 +1031,18 @@ bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
 
     // FrameAdd(frame);
 
-    static int count = 0;
+    FrameData *frame;
 
-    if ( !ObjectNameCompare(&obj_name, &(m_frame_data.obj_key)))
-    {
-        if (!FrameDataBuild(&obj_name))
+    frame = FrameDataFind(&obj_name);
+    if (!frame)
+    {    
+        frame = FrameDataBuild(&obj_name);
+        if (!frame)
             return false;
     }
 
-    FrameDataParse();
+    FrameDataParse(frame);
 
-    count++;
 
     return true;
 }
@@ -1339,17 +1345,25 @@ DlisObject *CDLISParser::FindObject(DlisValueObjName *obj, DlisSet *set)
 }
 
 
-bool CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
+CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
 {
-    DlisSet   *frame;
-    DlisSet   *channel;
-    
+    DlisSet     *frame;
+    DlisSet     *channel;
+    FrameData   *frame_data;   
+
+
+    frame_data = (FrameData *)m_allocator.MemoryGet(m_pull_id_frame_data, sizeof(FrameData));
+    if (!frame_data)
+        return NULL;
+
+    memset(frame_data, 0, sizeof(FrameData));
+
     // get frame and channel sets 
     frame   = FindSubSet("FRAME", m_last_root_set);
     channel = FindSubSet("CHANNEL", m_last_root_set);
     
     if (!frame || !channel)
-        return false;
+        return NULL;
 
     DlisObject    *obj_channel;
     DlisAttribute *attr, *found;
@@ -1358,20 +1372,26 @@ bool CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
     obj_channel = FindObject(obj_name, frame);
     
     if (!obj_channel)
-        return false;
-
-    ChannelInfo  *channel_info;
-    
-    // get first item from channel info
-    channel_info   = &m_frame_data.channels[0];
-    m_frame_data.channel_count = 0;
-    
+        return NULL;
+   
     // get attribute CHANNELS from
     attr = FindAttribute(frame, obj_channel, "CHANNELS");
+    if (!attr)
+        return NULL;
 
-    DlisValue  *val;
-    size_t      count = 0;
 
+
+    DlisValue    *val;
+    size_t        count = 0;
+    ChannelInfo  *channel_info;
+
+
+    frame_data->channel_count = 0;
+
+    channel_info = (ChannelInfo *)m_allocator.MemoryGet(m_pull_id_frame_data, sizeof(ChannelInfo) * attr->count);
+    if (!channel_info)
+        return NULL;
+    
     val = attr->value;
     while (count < attr->count)
     {
@@ -1379,58 +1399,78 @@ bool CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
 
         name = (DlisValueObjName *)val->data; 
         if (!name)
-            return false;
+            return NULL;
 
         channel_info->obj_name = name;
 
         obj_channel = FindObject(name, channel);
         if (!obj_channel)
-            return false;
+            return NULL;
        
         found = FindAttribute(channel, obj_channel, "REPRESENTATION-CODE");
         if (!found)
-            return false;
+            return NULL;
 
         channel_info->code = (RepresentationCodes) AttrGetInt(found);
 
         found = FindAttribute(channel, obj_channel, "DIMENSION");
         if (!found)
-            return false;
+            return NULL;
 
         channel_info->dimension = (short) AttrGetInt(found);
         
         // next element 
-        m_frame_data.channel_count++;
+        frame_data->channel_count++;
         channel_info++;
         val++;
         count++;
     }
     
-    m_frame_data.obj_key.copy_number      = obj_name->copy_number;
-    m_frame_data.obj_key.origin_reference = obj_name->origin_reference;
-    strcpy_s(m_frame_data.obj_key.identifier, MAX_ATTRIBUTE_LABEL, obj_name->identifier);
 
-    return true; 
+    size_t len;
+    len = strlen(obj_name->identifier);   
+
+    frame_data->obj_key.copy_number      = obj_name->copy_number;
+    frame_data->obj_key.origin_reference = obj_name->origin_reference;
+    frame_data->obj_key.identifier       = m_allocator.MemoryGet(m_pull_id_frame_data, len + 1);
+    strcpy_s(frame_data->obj_key.identifier, len + 1, obj_name->identifier);
+
+
+
+    FrameData **frame_tail;
+
+    frame_tail = &m_frame_data;
+    while (*frame_tail)
+    {
+        frame_tail = &(*frame_tail)->next;
+    }
+    *frame_tail = frame_data;
+
+    return frame_data; 
 }
 
 
-bool CDLISParser::FrameDataParse()
+bool CDLISParser::FrameDataParse(FrameData *frame)
 {
     static char   buf[8 * Kb];
 
     void         *dst;
     size_t        len, all_size = 0;
+    size_t        count_frame   = 0;
 
     int           count;
     ChannelInfo  *channel;
 
-    channel = &m_frame_data.channels[0];
-    count   = m_frame_data.channel_count;
+    channel = frame->channels;
+    count   = frame->channel_count;
+    
+    ReadCodeSimple(RC_UVARI, &dst, &len);
+    memcpy(&count_frame, dst, len);
 
-    m_segment.current += 1;
-    m_segment.len     -= 1;
+    // m_segment.current += 1;
+    // m_segment.len     -= 1;
 
-    while (m_segment.len)
+    while (count_frame)
     {
         if (all_size != 0)
         {
@@ -1438,8 +1478,8 @@ bool CDLISParser::FrameDataParse()
                 break;
         }
 
-        channel  = &m_frame_data.channels[0];
-        count    = m_frame_data.channel_count;
+        channel  = &m_frame_data2.channels[0];
+        count    = m_frame_data2.channel_count;
         all_size = 0;
         for (int i = 0; i < count; i++)
         {
@@ -1462,6 +1502,26 @@ bool CDLISParser::FrameDataParse()
         }
     }
     return true;
+}
+
+
+CDLISParser::FrameData *CDLISParser::FrameDataFind(DlisValueObjName *obj_name)
+{
+    FrameData *next, *r = NULL;
+
+    next = m_frame_data;
+    while (next)
+    {
+        if (ObjectNameCompare(&next->obj_key, obj_name))
+        {
+            r = next;
+            break;
+        }
+
+        next = next->next;
+    }
+
+    return r;
 }
 
 /*

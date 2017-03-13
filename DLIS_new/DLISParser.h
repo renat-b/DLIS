@@ -99,8 +99,10 @@ private:
     struct FrameData
     {
         DlisValueObjName  obj_key;
-        ChannelInfo       channels[256];
+        ChannelInfo      *channels;
         int               channel_count; 
+
+        FrameData        *next;
     };
 
 
@@ -110,7 +112,8 @@ private:
     SegmentHeader      m_segment_header;
     ComponentHeader    m_component_header;
 
-    FrameData          m_frame_data;
+    FrameData          m_frame_data2;
+    FrameData         *m_frame_data;
 
     UINT               m_state;
     // корневой узел (root)
@@ -135,6 +138,7 @@ private:
     CDLISAllocator     m_allocator;
     size_t             m_pull_id_strings;
     size_t             m_pull_id_objects;
+    size_t             m_pull_id_frame_data;
     
 private:
    static RepresentaionCodesLenght s_rep_codes_length[RC_LAST];
@@ -214,8 +218,10 @@ private:
     DlisSet        *FindSubSet(char *name_sub_set, DlisSet *root);
     DlisObject     *FindObject(DlisValueObjName *obj, DlisSet *set);
 
-    bool            FrameDataBuild(DlisValueObjName *obj_name);
-    bool            FrameDataParse();
+    FrameData      *FrameDataBuild(DlisValueObjName *obj_name);
+    bool            FrameDataParse(FrameData *frame);
+    FrameData      *FrameDataFind(DlisValueObjName *obj_name);
+
     // распечатка code representation
     void            DebugPrintRepCode(RepresentationCodes code, char *str_rep_code, size_t size);
     void            DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t size);
