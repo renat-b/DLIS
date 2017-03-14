@@ -405,20 +405,63 @@ UINT64 CDLISParser::FileSize()
 
 void CDLISParser::Big2LittelEndian(void *data, size_t len)
 {
-    static byte tmp[8];
+    byte *dst;
+    byte  tmp;
 
-    if (len > sizeof(tmp))
-        return;
+    dst = (byte *)data;
 
-    byte *src = (byte *)data + len - 1;
-    byte *dst = tmp;
-
-    while (src >= data)
+    switch (len)
     {
-        *(dst++) = *(src--);
+        case 2:
+            tmp    = dst[0];
+            dst[0] = dst[1];
+            dst[1] = tmp;
+            break;
+
+        case 4:
+            tmp    = dst[0];
+            dst[0] = dst[3];
+            dst[3] = tmp;
+
+            tmp    = dst[1];
+            dst[1] = dst[2];
+            dst[2] = tmp;
+            break;
+
+        case 8:
+            tmp    = dst[0];
+            dst[0] = dst[7];
+            dst[7] = tmp;
+
+            tmp    = dst[1];
+            dst[1] = dst[6];
+            dst[6] = tmp;
+
+            tmp    = dst[2];
+            dst[2] = dst[5];
+            dst[5] = tmp;
+
+            tmp    = dst[3];
+            dst[3] = dst[4];
+            dst[4] = tmp;
+            break;
+
     }
 
-    memcpy(data, tmp, len);
+    // static byte tmp[8];
+
+    // if (len > sizeof(tmp))
+    //     return;
+
+    // byte *src = (byte *)data + len - 1;
+    // byte *dst = tmp;
+
+    // while (src >= data)
+    // {
+    //     *(dst++) = *(src--);
+    // }
+
+    // memcpy(data, tmp, len);
 }
 
 
@@ -1410,7 +1453,9 @@ CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
             return NULL;
 
         channel_info->dimension = (short) AttrGetInt(found);
-        
+       
+        frame_data->len += s_rep_codes_length[channel_info->code - 1].length * channel_info->dimension;
+
         // next element 
         frame_data->channel_count++;
         channel_info++;
@@ -1449,38 +1494,26 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
     void         *dst;
     size_t        len          = 0;
     int           number_frame = 0;
-
     int           count;
     ChannelInfo  *channel;
 
+    channel  = frame->channels;
+    count    = frame->channel_count;
+ 
     while(m_segment.len)
     {
         ReadCodeSimple(RC_UVARI, &dst, &len);
         memcpy(&number_frame, dst, len);
-
-        channel  = frame->channels;
-        count    = frame->channel_count;
-
+        
+        ReadRawData(buf, frame->len);
         for (int i = 0; i < count; i++)
         {
-            // ReadRawData(buf, channel->dimension * 8);
-             char *ptr;
-
-             ptr = &buf[0];
-             for (int j = 0; j < channel->dimension; j++)
-             {
-                 ReadCodeSimple(channel->code, &dst, &len);
-                 memcpy(ptr, dst, len);
-                 ptr      += len;
-             }
-
-             float *val;
-
-             val = (float *)buf;
+            len = s_rep_codes_length[channel->code - 1].length;
+            for (int j = 0; j < channel->dimension; j++)
+                Big2LittelEndian(buf + i * len, len);
 
             channel++;
         }
-        // count_frame--;
     }
     return true;
 }

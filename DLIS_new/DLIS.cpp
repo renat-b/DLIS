@@ -18,7 +18,18 @@ int main()
     CDLISParser  parser;
 
     parser.Initialize();
+
+    LARGE_INTEGER start, end, elapsed, fraquency;
+
+    QueryPerformanceFrequency(&fraquency);
+    QueryPerformanceCounter(&start);
+
     parser.Parse("../Dlis_examples/TestEWLDlis_1485963328769.dlis");
+
+    QueryPerformanceCounter(&end);
+    elapsed.QuadPart = (LONGLONG)(double(end.QuadPart - start.QuadPart) / fraquency.QuadPart * 1000);
+    
+    printf("time: %I64u ms\n", elapsed.QuadPart);
 
     if (g_global_log->IsCompareFilesMode())
         g_global_log->Close();

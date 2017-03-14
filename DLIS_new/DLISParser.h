@@ -101,6 +101,7 @@ private:
         DlisValueObjName  obj_key;
         ChannelInfo      *channels;
         int               channel_count; 
+        size_t            len;
 
         FrameData        *next;
     };
@@ -169,7 +170,7 @@ private:
     void            FileSeekSet(UINT64 offset);
     UINT64          FileSize();
     // преобразования bit 2 littel endian
-    void            Big2LittelEndian(void *dst, size_t len);
+    inline void     Big2LittelEndian(void *dst, size_t len);
     void            Big2LittelEndianByte(byte *byte);
 
     // чтение заголовка и логических файлов
