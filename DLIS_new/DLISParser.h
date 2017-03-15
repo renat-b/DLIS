@@ -88,18 +88,11 @@ private:
         char            *end;
         size_t           len;
     };
-    
-    struct ChannelInfo
-    {
-        DlisValueObjName    *obj_name;
-        RepresentationCodes  code;
-        short                dimension;
-    };
 
     struct FrameData
     {
         DlisValueObjName  obj_key;
-        ChannelInfo      *channels;
+        DlisChannelInfo  *channels;
         int               channel_count; 
         size_t            len;
 
@@ -113,7 +106,6 @@ private:
     SegmentHeader      m_segment_header;
     ComponentHeader    m_component_header;
 
-    FrameData          m_frame_data2;
     FrameData         *m_frame_data;
 
     UINT               m_state;

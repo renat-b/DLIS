@@ -447,22 +447,7 @@ void CDLISParser::Big2LittelEndian(void *data, size_t len)
             break;
 
     }
-
-    // static byte tmp[8];
-
-    // if (len > sizeof(tmp))
-    //     return;
-
-    // byte *src = (byte *)data + len - 1;
-    // byte *dst = tmp;
-
-    // while (src >= data)
-    // {
-    //     *(dst++) = *(src--);
-    // }
-
-    // memcpy(data, tmp, len);
-}
+ }
 
 
 void CDLISParser::Big2LittelEndianByte(byte *bt)
@@ -1415,17 +1400,17 @@ CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
 
 
 
-    DlisValue    *val;
-    size_t        count = 0;
-    ChannelInfo  *channel_info;
+    DlisValue        *val;
+    size_t            count = 0;
+    DlisChannelInfo  *channels;
 
 
-    channel_info = (ChannelInfo *)m_allocator.MemoryGet(m_pull_id_frame_data, sizeof(ChannelInfo) * attr->count);
-    if (!channel_info)
+    channels = (DlisChannelInfo *)m_allocator.MemoryGet(m_pull_id_frame_data, sizeof(DlisChannelInfo) * attr->count);
+    if (!channels)
         return NULL;
 
     frame_data->channel_count = 0;   
-    frame_data->channels      = channel_info;
+    frame_data->channels      = channels;
 
     val = attr->value;
     while (count < attr->count)
@@ -1436,7 +1421,7 @@ CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
         if (!name)
             return NULL;
 
-        channel_info->obj_name = name;
+        channels->obj_name = name;
 
         obj_channel = FindObject(name, channel);
         if (!obj_channel)
@@ -1446,19 +1431,25 @@ CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
         if (!found)
             return NULL;
 
-        channel_info->code = (RepresentationCodes) AttrGetInt(found);
+        channels->code = (RepresentationCodes) AttrGetInt(found);
 
         found = FindAttribute(channel, obj_channel, "DIMENSION");
         if (!found)
             return NULL;
 
-        channel_info->dimension = (short) AttrGetInt(found);
-       
-        frame_data->len += s_rep_codes_length[channel_info->code - 1].length * channel_info->dimension;
+        channels->dimension    = (short) AttrGetInt(found);
+        channels->element_size = s_rep_codes_length[channels->code - 1].length;
+
+        if (channels == frame_data->channels)
+            channels->offsets = 0;
+        else
+            channels->offsets = (channels - 1)->offsets + channels->dimension * channels->element_size;
+
+        frame_data->len += s_rep_codes_length[channels->code - 1].length * channels->dimension;
 
         // next element 
         frame_data->channel_count++;
-        channel_info++;
+        channels++;
         val++;
         count++;
     }
@@ -1495,7 +1486,7 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
     size_t        len          = 0;
     int           number_frame = 0;
     int           count;
-    ChannelInfo  *channel;
+    DlisChannelInfo  *channel;
 
     channel  = frame->channels;
     count    = frame->channel_count;

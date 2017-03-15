@@ -231,3 +231,15 @@ struct DlisSet
     DlisSet         *next;
     DlisSet         *childs;
 };
+
+    
+struct DlisChannelInfo
+{
+    DlisValueObjName    *obj_name;
+    RepresentationCodes  code;
+    short                dimension;
+
+    size_t               offsets;
+    short                element_size;
+};
+

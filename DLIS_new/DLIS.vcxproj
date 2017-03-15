@@ -41,7 +41,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v120_xp</PlatformToolset>
+    <PlatformToolset>v140_xp</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -131,10 +131,11 @@
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeader>
       </PrecompiledHeader>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat>None</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -149,6 +150,7 @@
   <ItemGroup>
     <ClCompile Include="DLIS.cpp" />
     <ClCompile Include="DlisAllocator.cpp" />
+    <ClCompile Include="DLISFrame.cpp" />
     <ClCompile Include="DLISParser.cpp" />
     <ClCompile Include="DlisPrint.cpp" />
     <ClCompile Include="FileBin.cpp" />
@@ -156,6 +158,7 @@
   <ItemGroup>
     <ClInclude Include="DlisAllocator.h" />
     <ClInclude Include="DlisCommon.h" />
+    <ClInclude Include="DLISFrame.h" />
     <ClInclude Include="DLISParser.h" />
     <ClInclude Include="DlisPrint.h" />
     <ClInclude Include="FileBin.h" />
