@@ -4,22 +4,11 @@
 #include    "DlisCommon.h"
 #include    "FileBin.h"
 #include    "DlisAllocator.h"
+#include    "MemoryBuffer.h"
+#include    "DLISFrame.h"
 
 // глобальный объект лога (для отладки)
 extern CFileBin *g_global_log;
-
-
-// буфер реаллокации данных
-struct MemoryBuffer
-{
-    char            *data;
-    size_t           size;
-    size_t           max_size;
-
-    bool             Resize(size_t new_len); 
-    void             Free();    
-};
-
 
 class CDLISParser
 {
@@ -94,7 +83,7 @@ private:
         DlisValueObjName  obj_key;
         DlisChannelInfo  *channels;
         int               channel_count; 
-        size_t            len;
+        int               len;
 
         FrameData        *next;
     };
@@ -133,6 +122,8 @@ private:
     size_t             m_pull_id_objects;
     size_t             m_pull_id_frame_data;
     
+    CDLISFrame         m_frame;
+
 private:
    static RepresentaionCodesLenght s_rep_codes_length[RC_LAST];
  

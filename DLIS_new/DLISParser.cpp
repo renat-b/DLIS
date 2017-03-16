@@ -7,53 +7,6 @@
 
 CFileBin *g_global_log = NULL;
 
-bool MemoryBuffer::Resize(size_t new_max_size)
-{
-
-    // если размера буфера хватает, выходим - выделять ничего не надо
-    if (new_max_size < max_size)
-        return true;
-    
-    char   *buf = NULL;
-    size_t  cap = new_max_size / 4;
-
-    // ограничим размер нового буфера по минимальному и максимальному значению
-    if (cap < 16)    
-        cap = 16;
-    
-    if (cap > 1024 * 1024)
-        cap  = 32 * 1024;
-
-    // новая емкость буфера
-    cap += new_max_size;
-    
-    // выделим память под буфер
-    buf = new(std::nothrow) char[cap];
-    if (!buf)
-        return false;
-    
-    // копируем старые данные
-    memcpy(buf, data, size);
-    max_size = cap;
-     
-    // освободим старую память и запомним новый буфер
-    delete data;
-    data = buf;
-
-    return true;
-}
-
-
-void MemoryBuffer::Free()
-{
-    if (data)
-        delete data;
-    
-    data     = NULL;
-    size     = 0;
-    max_size = 0;
-}
-
 
 CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] = 
 {
@@ -1482,30 +1435,21 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
 {
     static char   buf[8 * Kb];
 
-    void         *dst;
-    size_t        len          = 0;
-    int           number_frame = 0;
-    int           count;
-    DlisChannelInfo  *channel;
+    void     *dst;
+    size_t    len          = 0;
+    int       number_frame = 0;
 
-    channel  = frame->channels;
-    count    = frame->channel_count;
- 
+    m_frame.Initialize();
     while(m_segment.len)
     {
         ReadCodeSimple(RC_UVARI, &dst, &len);
         memcpy(&number_frame, dst, len);
         
         ReadRawData(buf, frame->len);
-        for (int i = 0; i < count; i++)
-        {
-            len = s_rep_codes_length[channel->code - 1].length;
-            for (int j = 0; j < channel->dimension; j++)
-                Big2LittelEndian(buf + i * len, len);
-
-            channel++;
-        }
+        m_frame.AddRawData(number_frame, buf, frame->len);
     }
+
+    m_frame.AddChannels(frame->channels, frame->channel_count, frame->len);
     return true;
 }
 

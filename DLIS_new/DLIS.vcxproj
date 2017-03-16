@@ -145,15 +145,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="DLIS.cpp" />
     <ClCompile Include="DlisAllocator.cpp" />
     <ClCompile Include="DLISFrame.cpp" />
     <ClCompile Include="DLISParser.cpp" />
     <ClCompile Include="DlisPrint.cpp" />
     <ClCompile Include="FileBin.cpp" />
+    <ClCompile Include="MemoryBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DlisAllocator.h" />
@@ -162,6 +160,7 @@
     <ClInclude Include="DLISParser.h" />
     <ClInclude Include="DlisPrint.h" />
     <ClInclude Include="FileBin.h" />
+    <ClInclude Include="MemoryBuffer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
