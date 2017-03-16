@@ -68,8 +68,8 @@ void CDLISFrame::AddChannels(DlisChannelInfo *channels, int size_channels, int f
         m_frame_len += channels->element_size;
     }
 
-    if ((m_buffer.size % m_frame_len) != 0)
-        assert(false);
+    //if ((m_buffer.size % m_frame_len) != 0)
+    //    assert(false);
 
     m_count = (int)m_buffer.size / m_frame_len;
     m_frame_len = frame_len;
@@ -91,6 +91,15 @@ char *CDLISFrame::GetName(int column)
 
     name = m_channels[column].obj_name->identifier;
     return name;
+}
+
+
+float *CDLISFrame::GetValueFloat(int column, int row, int *dimension)
+{
+    float  *ret;
+    
+    ret = (float *)GetValue(column, row, dimension);
+    return ret;
 }
 
 

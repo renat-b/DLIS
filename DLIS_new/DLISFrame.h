@@ -27,8 +27,11 @@ public:
     //
     int             GetNumber(int column);
     char           *GetName(int column);
+
+    float          *GetValueFloat(int column, int row, int *dimension);
     double         *GetValueDouble(int column, int row, int *dimension);
     int            *GetValueInt(int column, int row, int *dimension);
+
     int             Count();
 
 private:

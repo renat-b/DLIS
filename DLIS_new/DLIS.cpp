@@ -5,7 +5,18 @@
 
 void  NotifyFrame(CDLISFrame *frame, void *params)
 {
-    int k = 0;
+    static  int count = 0;
+
+    int     k = 0;
+    float  *d;
+
+    d = frame->GetValueFloat(0, 0, &k);
+    if (count < 100)
+    {
+        double ret = *d;
+        //printf("%.4f\n", ret);
+    }
+    count++;
 }
 
 
@@ -33,7 +44,7 @@ int main()
     QueryPerformanceFrequency(&fraquency);
     QueryPerformanceCounter(&start);
 
-    parser.Parse("../Dlis_examples/TestEWLDlis_1485963328769.dlis");
+    parser.Parse("../Dlis_examples/Sample2.dlis");
 
     QueryPerformanceCounter(&end);
     elapsed.QuadPart = (LONGLONG)(double(end.QuadPart - start.QuadPart) / fraquency.QuadPart * 1000);
