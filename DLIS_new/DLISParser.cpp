@@ -44,7 +44,7 @@ CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_
     m_sets(NULL), m_set_tail(NULL), m_object_tail(NULL), m_attribute_tail(NULL), m_column_tail(NULL),m_frame_tail(NULL),
     m_last_set(NULL), m_last_root_set(NULL), m_last_object(NULL), m_last_column(NULL), m_last_attribute(NULL),
     m_pull_id_strings(0), m_pull_id_objects(0), m_pull_id_frame_data(0), 
-    m_last_frame(NULL), m_frame_data(NULL)
+    m_last_frame(NULL), m_frame_data(NULL), m_notify_frame_func(NULL), m_notify_params(NULL)
 {
     memset(&m_segment,             0, sizeof(m_segment));
     memset(&m_storage_unit_label,  0, sizeof(m_storage_unit_label));
@@ -122,6 +122,18 @@ void CDLISParser::Shutdown()
     memset(&m_file_chunk, 0, sizeof(m_file_chunk));
 
     m_allocator.PullFreeAll();
+}
+
+
+void CDLISParser::RegNotifyFrameFunc(DlisNotifyFunc func)
+{
+    m_notify_frame_func = func;
+}
+
+
+void CDLISParser::RegNotifyParams(void *params)
+{
+    m_notify_params = params;
 }
 
 
@@ -1439,17 +1451,22 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
     size_t    len          = 0;
     int       number_frame = 0;
 
-    m_frame.Initialize();
-    while(m_segment.len)
+    if (m_notify_frame_func)
     {
-        ReadCodeSimple(RC_UVARI, &dst, &len);
-        memcpy(&number_frame, dst, len);
-        
-        ReadRawData(buf, frame->len);
-        m_frame.AddRawData(number_frame, buf, frame->len);
-    }
+        m_frame.Initialize();
+        while (m_segment.len)
+        {
+            ReadCodeSimple(RC_UVARI, &dst, &len);
+            memcpy(&number_frame, dst, len);
 
-    m_frame.AddChannels(frame->channels, frame->channel_count, frame->len);
+            ReadRawData(buf, frame->len);
+            m_frame.AddRawData(number_frame, buf, frame->len);
+        }
+
+        m_frame.AddChannels(frame->channels, frame->channel_count, frame->len);
+
+        m_notify_frame_func(&m_frame, m_notify_params);
+    }
     return true;
 }
 

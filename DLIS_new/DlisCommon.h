@@ -242,4 +242,3 @@ struct DlisChannelInfo
     size_t               offsets;
     short                element_size;
 };
-

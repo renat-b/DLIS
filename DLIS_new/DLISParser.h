@@ -7,6 +7,9 @@
 #include    "MemoryBuffer.h"
 #include    "DLISFrame.h"
 
+
+typedef void (*DlisNotifyFunc)(CDLISFrame *frame, void *params);
+
 // глобальный объект лога (для отладки)
 extern CFileBin *g_global_log;
 
@@ -124,6 +127,9 @@ private:
     
     CDLISFrame         m_frame;
 
+    DlisNotifyFunc     m_notify_frame_func;
+    void              *m_notify_params;
+
 private:
    static RepresentaionCodesLenght s_rep_codes_length[RC_LAST];
  
@@ -137,7 +143,10 @@ public:
     // инициализация, выгрузка внутренних буферов и данных из парсера
     bool            Initialize();
     void            Shutdown();
-    
+
+    void            RegNotifyFrameFunc(DlisNotifyFunc func);
+    void            RegNotifyParams(void *params);
+
     DlisSet        *GetRoot()     {  return m_sets;  }
 
     char           *AttrGetString(DlisAttribute *attr, char *buf, size_t buf_len);

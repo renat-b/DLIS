@@ -28,6 +28,7 @@ void CDLISFrame::Shutdown()
 {
     if (m_buffer.data)
         delete [] m_buffer.data;
+
     if (m_numbers.data)
         delete[] m_numbers.data;
 

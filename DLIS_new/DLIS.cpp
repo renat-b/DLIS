@@ -3,6 +3,12 @@
 #include    "DLISParser.h"
 
 
+void  NotifyFrame(CDLISFrame *frame, void *params)
+{
+    int k = 0;
+}
+
+
 int main()
 {
     g_global_log = new CFileBin;
@@ -18,6 +24,9 @@ int main()
     CDLISParser  parser;
 
     parser.Initialize();
+
+    parser.RegNotifyFrameFunc(&NotifyFrame);
+    parser.RegNotifyParams(NULL);
 
     LARGE_INTEGER start, end, elapsed, fraquency;
 
