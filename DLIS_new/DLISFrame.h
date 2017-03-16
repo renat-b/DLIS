@@ -7,23 +7,27 @@ class CDLISFrame
 {
 private:
     DlisChannelInfo  *m_channels;
-    size_t            m_frame_len;
-    size_t            m_columns;
-    size_t            m_rows;
+    int               m_frame_len;
+    int               m_size_channels;
+    int               m_count;
     char             *m_raw_data;
-    size_t            m_raw_data_len;
+    int               m_raw_data_len;
+    int               m_first_number;
 
 public:
     CDLISFrame();
     ~CDLISFrame();
+
+    void            Initialize(char *raw_data, int raw_data_len, DlisChannelInfo *channels, int size_channels, int first_number);
     //
-    char           *GetName(size_t index);
-    double         *GetValueDouble(size_t column, size_t row, size_t *dimension);
-    int            *GetValueInt(size_t column, size_t row, size_t *dimension);
+    int             GetNumber(int column);
+    char           *GetName(int column);
+    double         *GetValueDouble(int column, int row, int *dimension);
+    int            *GetValueInt(int column, int row, int *dimension);
     size_t          Count();
 
 private:
-    inline void     Big2LittelEndian(void *dst, size_t len);
+    inline void     Big2LittelEndian(void *dst, int len);
 
-    void           *GetValue(size_t column, size_t row, size_t *dimension);
+    void           *GetValue(int column, int row, int *dimension);
 };

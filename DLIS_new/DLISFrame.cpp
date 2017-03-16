@@ -1,7 +1,9 @@
 #include "DLISFrame.h"
 #include "windows.h"
+#include "assert.h"
 
-CDLISFrame::CDLISFrame() : m_channels(NULL), m_columns(0), m_frame_len(0), m_raw_data_len(0), m_raw_data(NULL)
+
+CDLISFrame::CDLISFrame() : m_channels(NULL), m_size_channels(0), m_frame_len(0), m_raw_data_len(0), m_raw_data(NULL), m_count(0), m_first_number(0)
 {
 }
 
@@ -11,13 +13,46 @@ CDLISFrame::~CDLISFrame()
 }
 
 
-char *CDLISFrame::GetName(size_t column)
+void CDLISFrame::Initialize(char *raw_data, int raw_data_len, DlisChannelInfo *channels, int size_channels, int first_number)
 {
-    return NULL;
+    m_channels      = channels;
+    m_size_channels = size_channels;
+    m_raw_data      = raw_data;
+    m_raw_data_len  = raw_data_len;
+    m_first_number  = first_number;
+
+    m_frame_len     = 0;
+    for (int i = 0; i < size_channels; i++)
+    {
+        m_frame_len += channels->element_size;
+    }
+
+    if ((m_raw_data_len % m_frame_len) != 0)
+        assert(false);
+
+    m_count = m_raw_data_len / m_frame_len;
 }
 
 
-double *CDLISFrame::GetValueDouble(size_t column, size_t row, size_t *dimension)
+int CDLISFrame::GetNumber(int row)
+{
+    int number;
+
+    number = m_first_number + row;
+    return number;
+}
+
+
+char *CDLISFrame::GetName(int column)
+{
+    char *name;
+
+    name = m_channels[column].obj_name->identifier;
+    return name;
+}
+
+
+double *CDLISFrame::GetValueDouble(int column, int row, int *dimension)
 {
     double  *ret;
     
@@ -26,7 +61,7 @@ double *CDLISFrame::GetValueDouble(size_t column, size_t row, size_t *dimension)
 }
 
 
-int *CDLISFrame::GetValueInt(size_t column, size_t row, size_t *dimension)
+int *CDLISFrame::GetValueInt(int column, int row, int *dimension)
 {
     int  *ret;
 
@@ -38,11 +73,11 @@ int *CDLISFrame::GetValueInt(size_t column, size_t row, size_t *dimension)
 
 size_t CDLISFrame::Count()
 {
-    return m_columns;
+    return m_size_channels;
 }
 
 
-void CDLISFrame::Big2LittelEndian(void *data, size_t len)
+void CDLISFrame::Big2LittelEndian(void *data, int len)
 {
     char *dst;
     char  tmp;
@@ -88,19 +123,9 @@ void CDLISFrame::Big2LittelEndian(void *data, size_t len)
     }
 }
 
-void *CDLISFrame::GetValue(size_t column, size_t row, size_t *dimension)
+void *CDLISFrame::GetValue(int column, int row, int *dimension)
 {
-    void  *ret;
-    
-    if (column >= m_columns)
-        return NULL;
-
-    if (row >= m_rows)
-        return NULL;
-
-    if (!dimension)
-        return NULL;
-
+    void     *ret;
     char     *data, *ptr;
     DlisChannelInfo  *channel;
 
