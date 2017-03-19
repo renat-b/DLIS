@@ -1454,6 +1454,8 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
     if (m_notify_frame_func)
     {
         m_frame.Initialize();
+        m_frame.AddChannels(&frame->obj_key, frame->channels, frame->channel_count, frame->len);
+
         while (m_segment.len)
         {
             ReadCodeSimple(RC_UVARI, &dst, &len);
@@ -1462,8 +1464,6 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
             ReadRawData(buf, frame->len);
             m_frame.AddRawData(number_frame, buf, frame->len);
         }
-
-        m_frame.AddChannels(frame->channels, frame->channel_count, frame->len);
 
         m_notify_frame_func(&m_frame, m_notify_params);
     }

@@ -7,14 +7,37 @@ void  NotifyFrame(CDLISFrame *frame, void *params)
 {
     static  int count = 0;
 
-    int     k = 0;
     float  *d;
+    int     k = 0;
 
-    d = frame->GetValueFloat(0, 0, &k);
     if (count < 100)
     {
-        double ret = *d;
-        //printf("%.4f\n", ret);
+        if (count == 0)
+        {
+            for (int i = 0; i < frame->Columns(); i++)
+            {
+                printf("%s", frame->GetName(i));
+
+                if (i != frame->Columns())
+                    printf("\t");
+            }
+            printf("\n");
+        }
+
+        for (int i = 0; i < frame->Rows(); i++)
+            for (int j = 0; j < frame->Columns(); j++)
+            {
+                if (j == 0)
+                    printf("#%d\t", frame->GetNumber(i));
+
+                d = frame->GetValueFloat(j, i, &k);
+                double ret = *d;
+
+                printf("value: %.5f  count: %d", ret, k);
+                if (j == 0)
+                    printf("\t");
+            }
+        printf("\n");
     }
     count++;
 }

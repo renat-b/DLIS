@@ -3,7 +3,7 @@
 #include "assert.h"
 
 
-CDLISFrame::CDLISFrame() : m_channels(NULL), m_size_channels(0), m_frame_len(0), m_count(0), m_first_number(0)
+CDLISFrame::CDLISFrame() : m_channels(NULL), m_channels_count(0), m_frame_len(0), m_count(0)
 {
     memset(&m_buffer, 0, sizeof(m_buffer));
     memset(&m_numbers, 0, sizeof(m_numbers));
@@ -46,6 +46,7 @@ bool CDLISFrame::AddRawData(int number, char *raw_data, int raw_data_size)
     memcpy(m_buffer.data + m_buffer.size, raw_data, raw_data_size);
     m_buffer.size += raw_data_size;
 
+    m_count = (int)m_buffer.size / m_frame_len;
     //
     if (!m_numbers.Resize(sizeof(int)))
         return false;
@@ -57,30 +58,21 @@ bool CDLISFrame::AddRawData(int number, char *raw_data, int raw_data_size)
 }
 
 
-void CDLISFrame::AddChannels(DlisChannelInfo *channels, int size_channels, int frame_len)
+void CDLISFrame::AddChannels(DlisValueObjName *object, DlisChannelInfo *channels, int channels_count, int frame_len)
 {
-    m_channels      = channels;
-    m_size_channels = size_channels;
+    m_obj_key        = *object;
+    m_channels       = channels;
+    m_channels_count = channels_count;
 
-    m_frame_len     = 0;
-    for (int i = 0; i < size_channels; i++)
-    {
-        m_frame_len += channels->element_size;
-    }
-
-    //if ((m_buffer.size % m_frame_len) != 0)
-    //    assert(false);
-
-    m_count = (int)m_buffer.size / m_frame_len;
-    m_frame_len = frame_len;
+    m_frame_len      = frame_len;
 }
 
 
 int CDLISFrame::GetNumber(int row)
 {
     int number;
-
-    number = m_first_number + row;
+    
+    number = *(((int *)m_numbers.data) + row);
     return number;
 }
 
@@ -122,9 +114,15 @@ int *CDLISFrame::GetValueInt(int column, int row, int *dimension)
 }
 
 
-int CDLISFrame::Count()
+int CDLISFrame::Columns()
 {
-    return m_size_channels;
+    return m_channels_count;
+}
+
+
+int CDLISFrame::Rows()
+{
+    return m_count;
 }
 
 

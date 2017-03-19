@@ -9,10 +9,10 @@ class CDLISFrame
 private:
     DlisChannelInfo  *m_channels;
     int               m_frame_len;
-    int               m_size_channels;
+    int               m_channels_count;
     int               m_count;
-    int               m_first_number;
 
+    DlisValueObjName  m_obj_key;
     MemoryBuffer      m_buffer;
     MemoryBuffer      m_numbers;
 
@@ -23,7 +23,7 @@ public:
     void            Shutdown();
 
     bool            AddRawData(int number, char *raw_data, int raw_data_size);
-    void            AddChannels(DlisChannelInfo *channels, int size_channels, int frame_len);
+    void            AddChannels(DlisValueObjName *object, DlisChannelInfo *channels, int channels_count, int frame_len);
     //
     int             GetNumber(int column);
     char           *GetName(int column);
@@ -32,7 +32,8 @@ public:
     double         *GetValueDouble(int column, int row, int *dimension);
     int            *GetValueInt(int column, int row, int *dimension);
 
-    int             Count();
+    int             Columns();
+    int             Rows();
 
 private:
     inline void     Big2LittelEndian(void *dst, int len);
