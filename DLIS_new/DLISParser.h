@@ -8,7 +8,7 @@
 #include    "DLISFrame.h"
 
 
-typedef void (*DlisNotifyFunc)(CDLISFrame *frame, void *params);
+typedef void (*DlisNotifyCallback)(CDLISFrame *frame, void *params);
 
 // глобальный объект лога (для отладки)
 extern CFileBin *g_global_log;
@@ -127,8 +127,8 @@ private:
     
     CDLISFrame         m_frame;
 
-    DlisNotifyFunc     m_notify_frame_func;
-    void              *m_notify_params;
+    DlisNotifyCallback  m_notify_frame_func;
+    void               *m_notify_params;
 
 private:
    static RepresentaionCodesLenght s_rep_codes_length[RC_LAST];
@@ -144,8 +144,8 @@ public:
     bool            Initialize();
     void            Shutdown();
 
-    void            RegNotifyFrameFunc(DlisNotifyFunc func);
-    void            RegNotifyParams(void *params);
+    void            CallbackNotifyFrame(DlisNotifyCallback func);
+    void            CallbackNotifyParams(void *params);
 
     DlisSet        *GetRoot()     {  return m_sets;  }
 

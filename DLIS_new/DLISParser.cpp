@@ -125,13 +125,13 @@ void CDLISParser::Shutdown()
 }
 
 
-void CDLISParser::RegNotifyFrameFunc(DlisNotifyFunc func)
+void CDLISParser::CallbackNotifyFrame(DlisNotifyCallback func)
 {
     m_notify_frame_func = func;
 }
 
 
-void CDLISParser::RegNotifyParams(void *params)
+void CDLISParser::CallbackNotifyParams(void *params)
 {
     m_notify_params = params;
 }

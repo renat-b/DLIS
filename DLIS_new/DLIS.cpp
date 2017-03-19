@@ -18,7 +18,7 @@ void  NotifyFrame(CDLISFrame *frame, void *params)
             {
                 printf("%s", frame->GetName(i));
 
-                if (i != frame->Columns())
+                if (i != (frame->Columns() - 1))
                     printf("\t");
             }
             printf("\n");
@@ -34,7 +34,7 @@ void  NotifyFrame(CDLISFrame *frame, void *params)
                 double ret = *d;
 
                 printf("value: %.5f  count: %d", ret, k);
-                if (j == 0)
+                if (j != (frame->Columns() - 1))
                     printf("\t");
             }
         printf("\n");
@@ -59,8 +59,8 @@ int main()
 
     parser.Initialize();
 
-    parser.RegNotifyFrameFunc(&NotifyFrame);
-    parser.RegNotifyParams(NULL);
+    parser.CallbackNotifyFrame(&NotifyFrame);
+    parser.CallbackNotifyParams(NULL);
 
     LARGE_INTEGER start, end, elapsed, fraquency;
 
