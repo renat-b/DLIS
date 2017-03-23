@@ -1,6 +1,8 @@
 #pragma once
 
 #include "windows.h"
+#include "stdint.h"
+
 
 #pragma pack(push, 1)
 struct StorageUnitLabel
@@ -241,4 +243,22 @@ struct DlisChannelInfo
 
     size_t               offsets;
     short                element_size;
+};
+
+
+struct DlisVariant
+{
+    RepresentationCodes   code;
+    uint32_t              count;
+
+    union
+    {
+        double     *point_double_value;
+        double      double_value;
+        float      *point_float_value;
+        float       float_value;
+        char       *str_vaule;
+        char       **point_str_value;
+    }
+    data;
 };
