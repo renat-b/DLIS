@@ -48,9 +48,6 @@
     <ClCompile Include="MemoryBuffer.cpp">
       <Filter>Source Files\Common</Filter>
     </ClCompile>
-    <ClCompile Include="DlisDataConverter.cpp">
-      <Filter>Source Files\DLIS</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DLISParser.h">
@@ -73,9 +70,6 @@
     </ClInclude>
     <ClInclude Include="MemoryBuffer.h">
       <Filter>Header Files\Common</Filter>
-    </ClInclude>
-    <ClInclude Include="DlisDataConverter.h">
-      <Filter>Header Files\DLIS</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
