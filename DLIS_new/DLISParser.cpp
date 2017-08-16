@@ -82,12 +82,6 @@ bool CDLISParser::Parse(const char *file_name)
     if (!ReadLogicalFiles())
         return false;
 
-    // CDLISPrint debug_print;
-
-    // debug_print.Initialize();
-    // debug_print.Print(this);
-    // debug_print.Shutdown();
-
     return true;
 }
 
@@ -122,6 +116,27 @@ void CDLISParser::Shutdown()
     memset(&m_file_chunk, 0, sizeof(m_file_chunk));
 
     m_allocator.PullFreeAll();
+    m_pull_id_strings = 0;
+    m_pull_id_objects = 0;
+    m_pull_id_frame_data = 0;
+
+    m_frame_data = nullptr;
+
+    m_sets = nullptr;
+    m_set_tail = nullptr;
+    m_object_tail = nullptr;
+    m_attribute_tail = nullptr;
+    m_column_tail = nullptr;
+    m_frame_tail = nullptr;
+
+    m_last_set = nullptr;
+    m_last_root_set = nullptr;
+    m_last_object = nullptr;
+    m_last_attribute = nullptr;
+    m_last_column = nullptr;
+    m_last_frame = nullptr;
+
+
 }
 
 
@@ -567,7 +582,6 @@ bool CDLISParser::SegmentGet()
     m_segment.len     = m_segment_header.length_data;
 
     m_visible_record.current += m_segment_header.length;
-
     return true;
 }
 
@@ -676,7 +690,6 @@ bool CDLISParser::ReadLogicalFiles()
     while (r)
     {
         r = SegmentGet();
-
         if (r)
             r = SegmentProcess();
 
@@ -765,16 +778,23 @@ bool CDLISParser::ReadRawData(void *dst, size_t len)
         // вычитываем остаток данных из текущего сегмента
         size_t old_len = m_segment.len;
 
+        // копируем остаток данных из старого буфера
         memcpy(dst, m_segment.current, old_len);
+        len -= old_len;
+
         // получаем новый сегмент
         if ( !SegmentGet())
             return false;
 
-        // до-копируем остаток требуемых данных из нового сегмента 
-        memcpy( ((char *)dst) + old_len, m_segment.current, len - old_len);
+        // проверим, в сегменте хватает данных или нет?
+        if (m_segment.len < len)
+            return false;
 
-        m_segment.current += len - old_len;
-        m_segment.len     -= len - old_len;
+        // до-копируем остаток требуемых данных из нового сегмента 
+        memcpy( ((char *)dst) + old_len, m_segment.current, len);
+
+        m_segment.current += len;
+        m_segment.len     -= len;
 
         return true;
     }
@@ -975,6 +995,11 @@ bool CDLISParser::ReadCodeComplex(RepresentationCodes code, void *dst)
 */
 bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
 {                
+    if (m_segment.len == 4)
+    {
+        int kk = 0;
+    }
+
     static char       buf[128];
     char             *src;
     size_t            len, len_str;
@@ -991,30 +1016,6 @@ bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
     strcpy_s(buf, len_str + 1, src);
     obj_name.identifier = buf;
 
-
-    // DlisFrameData *frame;
-
-    // frame = (DlisFrameData *)m_allocator.MemoryGet(m_pull_id_objects, sizeof(DlisFrameData));
-    // if (!frame)
-    //     return false;
-
-    // memset(frame, 0, sizeof(DlisFrameData));
-
-    // if (m_last_frame && ObjectNameCompare(&obj_name, &(m_last_frame->obj_name)))
-    // {
-    //     frame->obj_name.identifier = m_last_frame->obj_name.identifier;
-    // }
-    // else
-    // {
-    //     frame->obj_name.identifier = m_allocator.MemoryGet(m_pull_id_strings, len_str + 1);
-
-    //     strcpy_s(frame->obj_name.identifier, len_str + 1, obj_name.identifier);
-    //     frame->obj_name.copy_number      = obj_name.copy_number;
-    //     frame->obj_name.origin_reference = obj_name.origin_reference;
-    // }
-
-    // FrameAdd(frame);
-
     FrameData *frame;
 
     frame = FrameDataFind(&obj_name);
@@ -1025,7 +1026,8 @@ bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
             return false;
     }
 
-    FrameDataParse(frame);
+    if (!FrameDataParse(frame))
+        return false;
 
 
     return true;
@@ -1458,10 +1460,12 @@ bool CDLISParser::FrameDataParse(FrameData *frame)
 
         while (m_segment.len)
         {
-            ReadCodeSimple(RC_UVARI, &dst, &len);
+            if (!ReadCodeSimple(RC_UVARI, &dst, &len))
+                return false;
             memcpy(&number_frame, dst, len);
 
-            ReadRawData(buf, frame->len);
+            if (!ReadRawData(buf, frame->len))
+                return false;
             m_frame.AddRawData(number_frame, buf, frame->len);
         }
 

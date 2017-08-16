@@ -2,14 +2,49 @@
 #include    <tchar.h>
 #include    "DLISParser.h"
 
+void *  _memccpy(
+    void * dest,
+    const void * src,
+    int c,
+    unsigned count
+    )
+{
+    while (count && (*((char *)(dest = (char *)dest + 1) - 1) =
+        *((char *)(src = (char *)src + 1) - 1)) != (char)c)
+        count--;
+
+    return(count ? dest : NULL);
+}
 
 void  NotifyFrame(CDLISFrame *frame, void *params)
 {
     static  int count = 0;
 
-    float  *d;
-    int     k = 0;
+    float   *d;
+    int      k = 0;
+	double*  time;
+	int      dimension;
 
+	int column = frame->Columns();
+	if (column < 1)
+		return;
+
+	for (int i = 0; i < frame->Rows(); i++)
+	{
+		dimension = 0; 
+		time = frame->GetValueDouble(0, i, &dimension);
+
+        if (!time)
+        {
+            return;
+        }
+
+        if (*time > 1499999999)
+        {
+            return;
+        }
+
+	}
     if (count < 100)
     {
         if (count == 0)
@@ -45,7 +80,33 @@ void  NotifyFrame(CDLISFrame *frame, void *params)
 
 int main()
 {
+    char dst[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    char src[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+    
+    _memccpy(dst, src, 100, sizeof(dst));
+
     g_global_log = new CFileBin;
+
+    bool r;
+    CDLISParser  parser;
+
+    parser.Initialize();
+	parser.CallbackNotifyFrame(&NotifyFrame);
+
+    r = parser.Parse("G:\\Data\\08.16.2017\\Ewl_2017_08_09_18-31-01_(2)_Clb__.dlis");
+    parser.Shutdown();
+
+    return true;
+
+
+
+
+
+
+
+
+
+
 
     g_global_log->SetTestCompareFilesMode(false);
     g_global_log->SetPrintMode(false);
@@ -55,9 +116,7 @@ int main()
             return -1;
         
 
-    CDLISParser  parser;
 
-    parser.Initialize();
 
     parser.CallbackNotifyFrame(&NotifyFrame);
     parser.CallbackNotifyParams(NULL);
@@ -66,8 +125,13 @@ int main()
 
     QueryPerformanceFrequency(&fraquency);
     QueryPerformanceCounter(&start);
+    
 
-    parser.Parse("../Dlis_examples/Sample2.dlis");
+    parser.Initialize();
+    r = parser.Parse("G:\\Data\\dr5\\EwlDlis_2017_05_27 01-53-22_TimeClb.dlis");
+
+    parser.Initialize();
+    r = parser.Parse("G:\\Data\\dr5\\EwlDlis_2017_05_27 01-53-52_(SNL_S).dlis");
 
     QueryPerformanceCounter(&end);
     elapsed.QuadPart = (LONGLONG)(double(end.QuadPart - start.QuadPart) / fraquency.QuadPart * 1000);

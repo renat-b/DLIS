@@ -100,6 +100,7 @@ void CDLISAllocator::PullFreeAll()
         PullRelease(pull);
         pull = next;
     }
+    m_pulls = nullptr;
 }
 
 
