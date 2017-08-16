@@ -995,11 +995,6 @@ bool CDLISParser::ReadCodeComplex(RepresentationCodes code, void *dst)
 */
 bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
 {                
-    if (m_segment.len == 4)
-    {
-        int kk = 0;
-    }
-
     static char       buf[128];
     char             *src;
     size_t            len, len_str;
@@ -1015,6 +1010,7 @@ bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
     ReadCodeSimple(RC_IDENT, (void **)&src, &len_str);
     strcpy_s(buf, len_str + 1, src);
     obj_name.identifier = buf;
+
 
     FrameData *frame;
 
