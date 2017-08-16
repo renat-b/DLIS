@@ -1,0 +1,6 @@
+*debug*
+*.opensdf
+*.sdf
+*.suo
+Data/
+DLIS_new/.vs/
