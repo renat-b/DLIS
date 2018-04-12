@@ -681,12 +681,28 @@ bool CDLISParser::SegmentProcess()
     }
     else
     {
-        if ( !(m_segment_header.attributes & Predecessor))
+        // должен быть первый сегмент
+        if (SegmentFirst(&m_segment_header))
             r = ReadIndirectlyFormattedLogicalRecord();
-
+        else
+            assert(false);
     }
 
     return r;
+}
+
+bool CDLISParser::SegmentLast(const SegmentHeader *segment_header)
+{
+    if ( !(segment_header->attributes & Successor))
+        return true;
+    return false;
+}
+
+bool CDLISParser::SegmentFirst(const SegmentHeader *segment_header)
+{
+    if ( !(segment_header->attributes & Predecessor))
+        return true;
+    return false;
 }
 
 /*
@@ -826,11 +842,8 @@ bool CDLISParser::ReadRawData(void *dst, size_t len)
     if (len > m_segment.len)
     {
         // если не хватает, проверяем это не последний сегмент в группе сегментов? Если последний, то ошибка
-        if ( !(m_segment_header.attributes & Successor))
-        {
-            //assert(false); 
+        if (SegmentLast(&m_segment_header))
             return false;
-        }
 
         // вычитываем остаток данных из текущего сегмента
         size_t old_len = m_segment.len;
@@ -1387,30 +1400,35 @@ CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
 
 bool CDLISParser::FrameDataParse(FrameData *frame)
 {
-    static char   buf[8 * Kb];
+    static char buf[8 * Kb];
 
     void     *dst;
     size_t    len          = 0;
     int       number_frame = 0;
 
-    if (m_notify_frame_func)
+    m_frame.Initialize();
+    m_frame.AddChannels(&frame->obj_key, frame->channels, frame->channel_count, frame->len);
+
+    do
     {
-        m_frame.Initialize();
-        m_frame.AddChannels(&frame->obj_key, frame->channels, frame->channel_count, frame->len);
-
-        while (m_segment.len)
-        {
-            if (!ReadCodeSimple(RC_UVARI, &dst, &len))
-                return false;
-            memcpy(&number_frame, dst, len);
-
-            if (!ReadRawData(buf, frame->len))
-                return false;
-            m_frame.AddRawData(number_frame, buf, frame->len);
-        }
-
-        m_notify_frame_func(&m_frame, m_notify_params);
+        // читаем номер фрейма
+        if (!ReadCodeSimple(RC_UVARI, &dst, &len))
+            return false;
+        memcpy(&number_frame, dst, len);
+        // читаем данные фрейма
+        if (!ReadRawData(buf, frame->len))
+            return false;
+        // добавляем в хранилище данных текущего фрейма
+        if (!m_frame.AddRawData(number_frame, buf, frame->len))
+            return false;
     }
+    // вычитываем данные, до тех пор пока они есть, и текущий сегмент не послдений
+    while (m_segment.len || !SegmentLast(&m_segment_header));
+
+    // вызываем нотифай функцию если она задана
+    if (m_notify_frame_func)
+        m_notify_frame_func(&m_frame, m_notify_params);
+
     return true;
 }
 

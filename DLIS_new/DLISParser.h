@@ -150,15 +150,18 @@ public:
 
     // парсинг DLIS
     bool            Parse(const wchar_t *file_name);
-    bool            Parse(QIODevice  *device);
+    bool            Parse(QIODevice *device);
     // инициализация, выгрузка внутренних буферов и данных из парсера
     bool            Initialize();
     void            Shutdown();
 
-    void            CallbackNotifyFrame(DlisNotifyCallback func, void *params);
     DlisSet        *GetRoot()     { return m_sets; }
+
+    void            CallbackNotifyFrame(DlisNotifyCallback func, void *params);
+
     char           *AttrGetString(DlisAttribute *attr, char *buf, size_t buf_len);
     int             AttrGetInt(DlisAttribute *attr);
+
 
     DlisAttribute  *FindColumnTemplate(DlisObject *object, DlisAttribute *attr);
     DlisAttribute  *FindAttribute(const DlisObject *object, const char *name_column);
@@ -190,6 +193,9 @@ private:
     // чтение сегмента DLIS данных 
     bool            SegmentGet();
     bool            SegmentProcess(); 
+
+    bool            SegmentLast(const SegmentHeader *segment_header);
+    bool            SegmentFirst(const SegmentHeader *segment_header);
 
     // чтение компонента DLIS
     bool            ComponentRead();

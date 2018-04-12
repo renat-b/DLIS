@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     parser.Initialize();
 	parser.CallbackNotifyFrame(&NotifyFrame, 0);
 
-    wchar_t buff[260];
+    wchar_t buff[260] = { 0 };
     MultiByteToWideChar(CP_ACP, 0, dlis_path, (int)strlen(dlis_path), buff, _countof(buff)); 
     r = parser.Parse(buff);
     //printf("all frames: %d, bad frames: %d\n", parser.CountAllFrames(), parser.CountBadFrames());
