@@ -1,6 +1,8 @@
 *debug*
+*releas*
 *.opensdf
 *.sdf
 *.suo
 Data/
 DLIS_new/.vs/
+*.vcxproj.user

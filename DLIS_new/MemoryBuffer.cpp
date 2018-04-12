@@ -1,10 +1,13 @@
-#include   "MemoryBuffer.h"
-#include   "windows.h"
-#include   "new.h"
-
+#include "StdAfx.h"
+#include "MemoryBuffer.h"
+#include "windows.h"
+#if defined(_MSC_VER)
+#include "new.h"
+#endif
 
 bool MemoryBuffer::Resize(size_t new_max_size)
 {
+
     // если размера буфера хватает, выходим - выделять ничего не надо
     if (new_max_size < max_size)
         return true;
@@ -16,7 +19,7 @@ bool MemoryBuffer::Resize(size_t new_max_size)
     if (cap < 16)    
         cap = 16;
     
-    if (cap > 32 * 1024)
+    if (cap > 1024 * 1024)
         cap  = 32 * 1024;
 
     // новая емкость буфера
@@ -48,3 +51,4 @@ void MemoryBuffer::Free()
     size     = 0;
     max_size = 0;
 }
+

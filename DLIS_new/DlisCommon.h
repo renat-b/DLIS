@@ -153,10 +153,13 @@ enum EFLRType
     LAST_Public_EFLR_Code = DICT,
 };
 
+// предварительные объявления
+struct DlisSet;
+
 // содержимое DLIS
 struct DlisValue
 {
-    // данные и ихний размер
+    // данные
     char              *data;
 };
 
@@ -203,6 +206,7 @@ struct DlisValueAttRef
 
 struct DlisObject
 {
+    DlisSet              *set;
     // 
     DlisValueObjName      name;
     // название колонок и данные
@@ -243,22 +247,4 @@ struct DlisChannelInfo
 
     size_t               offsets;
     short                element_size;
-};
-
-
-struct DlisVariant
-{
-    RepresentationCodes   code;
-    uint32_t              count;
-
-    union
-    {
-        double     *point_double_value;
-        double      double_value;
-        float      *point_float_value;
-        float       float_value;
-        char       *str_vaule;
-        char       **point_str_value;
-    }
-    data;
 };

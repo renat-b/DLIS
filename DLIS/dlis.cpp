@@ -6152,10 +6152,18 @@ void LogicalFile::Impl::makeNextSet(Input &input_body_EFLR, EFLRType type)
 	}
 }
 
+static int att = 0;
+
 void LogicalFile::Impl::makeNextFrame(std::istream *isIFLRBody, const LogicalRecordLocation &lrloc, ErrorLogImpl *err) 
 {
 	Input        inBody(isIFLRBody, err, -1);
 	ObjectName   obn;
+
+    att++;
+    if (att == 182120 - 0 /*131950*/)
+    {
+        int kk = 0;
+    }
 
 	SingleValue::read(obn, inBody, Representation::OBNAME);
     

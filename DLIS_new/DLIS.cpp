@@ -10,7 +10,7 @@ void  NotifyFrame(CDLISFrame *frame, void *params)
     float   *d;
     int      k = 0;
 
-	int column = frame->Columns();
+	int column = frame->CountColumns();
 	if (column < 1)
 		return;
 
@@ -18,18 +18,18 @@ void  NotifyFrame(CDLISFrame *frame, void *params)
     {
         if (count == 0)
         {
-            for (int i = 0; i < frame->Columns(); i++)
+            for (int i = 0; i < frame->CountColumns(); i++)
             {
-                printf("%s", frame->GetName(i));
+                printf("%s", frame->GetColumnName(i));
 
-                if (i != (frame->Columns() - 1))
+                if (i != (frame->CountColumns() - 1))
                     printf("\t");
             }
             printf("\n");
         }
 
-        for (int i = 0; i < frame->Rows(); i++)
-            for (int j = 0; j < frame->Columns(); j++)
+        for (int i = 0; i < frame->CountRows(); i++)
+            for (int j = 0; j < frame->CountColumns(); j++)
             {
                 if (j == 0)
                     printf("#%d\t", frame->GetNumber(i));
@@ -38,7 +38,7 @@ void  NotifyFrame(CDLISFrame *frame, void *params)
                 double ret = *d;
 
                 printf("value: %.5f  count: %d", ret, k);
-                if (j != (frame->Columns() - 1))
+                if (j != (frame->CountColumns() - 1))
                     printf("\t");
             }
         printf("\n");
@@ -47,68 +47,61 @@ void  NotifyFrame(CDLISFrame *frame, void *params)
 }
 
 
-int main()
+void Usage()
 {
-    g_global_log = new CFileBin;
+    printf("Usage: \n"
+           "-p \"c:\\example.dlis\"\n"
+          );
+}
+
+
+int main(int argc, char **argv)
+{
+    if (argc < 2)
+    {
+        Usage();
+        return -1;
+    }
+
+
+    int   i = 1;
+    char  dlis_path[MAX_PATH] = {0};
+
+    while (i < argc)
+    {
+        if (strcmp(argv[i], "-p") == 0)
+        {
+            if ((i + 1) >= argc)
+            {
+                Usage();
+                return -1;
+            }
+
+            i++;
+            strcpy_s(dlis_path, argv[i]);
+        }
+        i++;        
+    }
+    
+    if (dlis_path[0] == 0)
+    {
+        Usage();
+        return -1;
+    }
+
 
     bool r;
     CDLISParser  parser;
 
     parser.Initialize();
-	parser.CallbackNotifyFrame(&NotifyFrame);
+	parser.CallbackNotifyFrame(&NotifyFrame, 0);
 
-    r = parser.Parse("G:\\Data\\08.16.2017\\Ewl_2017_08_09_18-31-01_(2)_Clb__.dlis");
-    parser.Shutdown();
-
-    return true;
-
-
-
-
-
-
-
-
-
-
-
-    g_global_log->SetTestCompareFilesMode(false);
-    g_global_log->SetPrintMode(false);
-
-    if (g_global_log->IsCompareFilesMode())
-        if (!g_global_log->OpenRead("../Dlis_examples/Sample2.dat"))
-            return -1;
-        
-
-
-
-    parser.CallbackNotifyFrame(&NotifyFrame);
-    parser.CallbackNotifyParams(NULL);
-
-    LARGE_INTEGER start, end, elapsed, fraquency;
-
-    QueryPerformanceFrequency(&fraquency);
-    QueryPerformanceCounter(&start);
-    
-
-    parser.Initialize();
-    r = parser.Parse("G:\\Data\\dr5\\EwlDlis_2017_05_27 01-53-22_TimeClb.dlis");
-
-    parser.Initialize();
-    r = parser.Parse("G:\\Data\\dr5\\EwlDlis_2017_05_27 01-53-52_(SNL_S).dlis");
-
-    QueryPerformanceCounter(&end);
-    elapsed.QuadPart = (LONGLONG)(double(end.QuadPart - start.QuadPart) / fraquency.QuadPart * 1000);
-    
-    printf("time: %I64u ms\n", elapsed.QuadPart);
-
-    if (g_global_log->IsCompareFilesMode())
-        g_global_log->Close();
-
-    delete g_global_log;
-
-    system("pause");
+    wchar_t buff[260];
+    MultiByteToWideChar(CP_ACP, 0, dlis_path, (int)strlen(dlis_path), buff, _countof(buff)); 
+    r = parser.Parse(buff);
+    //printf("all frames: %d, bad frames: %d\n", parser.CountAllFrames(), parser.CountBadFrames());
 
     parser.Shutdown();
+
     return 0;
 }

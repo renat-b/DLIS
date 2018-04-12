@@ -25,15 +25,16 @@ public:
     bool            AddRawData(int number, char *raw_data, int raw_data_size);
     void            AddChannels(DlisValueObjName *object, DlisChannelInfo *channels, int channels_count, int frame_len);
     //
-    int             GetNumber(int column);
-    char           *GetName(int column);
+    int               GetNumber(int column);
+    char             *GetColumnName(int column);
+    DlisValueObjName *GetObject();
 
     float          *GetValueFloat(int column, int row, int *dimension);
     double         *GetValueDouble(int column, int row, int *dimension);
     int            *GetValueInt(int column, int row, int *dimension);
 
-    int             Columns();
-    int             Rows();
+    int             CountColumns();
+    int             CountRows();
 
 private:
     inline void     Big2LittelEndian(void *dst, int len);

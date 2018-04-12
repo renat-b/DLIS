@@ -10,3 +10,4 @@ struct MemoryBuffer
     bool             Resize(size_t new_len); 
     void             Free();    
 };
+

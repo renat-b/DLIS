@@ -1,6 +1,8 @@
+#include "StdAfx.h"
 #include "DlisAllocator.h"
+#if defined(_MSC_VER)
 #include "new.h"
-
+#endif
 
 CDLISAllocator::CDLISAllocator() : m_pull_id(0), m_pulls(NULL)
 {

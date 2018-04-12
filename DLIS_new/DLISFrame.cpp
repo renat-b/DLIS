@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "DLISFrame.h"
 #include "windows.h"
 #include "assert.h"
@@ -67,7 +68,6 @@ void CDLISFrame::AddChannels(DlisValueObjName *object, DlisChannelInfo *channels
     m_frame_len      = frame_len;
 }
 
-
 int CDLISFrame::GetNumber(int row)
 {
     int number;
@@ -77,12 +77,18 @@ int CDLISFrame::GetNumber(int row)
 }
 
 
-char *CDLISFrame::GetName(int column)
+char *CDLISFrame::GetColumnName(int column)
 {
     char *name;
 
     name = m_channels[column].obj_name->identifier;
     return name;
+}
+
+
+DlisValueObjName *CDLISFrame::GetObject()
+{
+    return &m_obj_key;
 }
 
 
@@ -114,13 +120,13 @@ int *CDLISFrame::GetValueInt(int column, int row, int *dimension)
 }
 
 
-int CDLISFrame::Columns()
+int CDLISFrame::CountColumns()
 {
     return m_channels_count;
 }
 
 
-int CDLISFrame::Rows()
+int CDLISFrame::CountRows()
 {
     return m_count;
 }

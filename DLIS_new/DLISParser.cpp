@@ -1,11 +1,9 @@
+#include "StdAfx.h"
 #include "DLISParser.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "stddef.h"
 #include "assert.h"
-#include "DlisPrint.h"
-
-CFileBin *g_global_log = NULL;
 
 
 CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] = 
@@ -40,7 +38,7 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] =
 };
 
 
-CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), 
+CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_device(NULL), m_state(STATE_PARSER_FIRST), 
     m_sets(NULL), m_set_tail(NULL), m_object_tail(NULL), m_attribute_tail(NULL), m_column_tail(NULL),m_frame_tail(NULL),
     m_last_set(NULL), m_last_root_set(NULL), m_last_object(NULL), m_last_column(NULL), m_last_attribute(NULL),
     m_pull_id_strings(0), m_pull_id_objects(0), m_pull_id_frame_data(0), 
@@ -61,27 +59,53 @@ CDLISParser::~CDLISParser()
 }
 
 
-bool CDLISParser::Parse(const char *file_name)
+bool CDLISParser::Parse(const wchar_t *file_name)
 {
     if (!file_name)
         return false;
 
-    // открываем файл
+    // РѕС‚РєСЂС‹РІР°РµРј С„Р°Р№Р»
     if (!FileOpen(file_name))
         return false;
+    
+    m_state |= STATE_MODE_FILE;
 
-    // инициализация внутреннего буфера файла    
+    // РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РІРЅСѓС‚СЂРµРЅРЅРµРіРѕ Р±СѓС„РµСЂР° С„Р°Р№Р»Р°    
     if (!BufferInitialize())
         return false;
 
-    // чтение заголовка DLIS        
+    // С‡С‚РµРЅРёРµ Р·Р°РіРѕР»РѕРІРєР° DLIS          
     if (!ReadStorageUnitLabel())
         return false;
 
-    // чтение данных DLIS    
+    // С‡С‚РµРЅРёРµ РґР°РЅРЅС‹С… DLIS
     if (!ReadLogicalFiles())
         return false;
 
+    return true;
+}
+
+
+bool CDLISParser::Parse(QIODevice *device)
+{
+    if (!device)
+        return false;
+
+    m_state |= STATE_MODE_IODEVICE;
+    m_device = device;
+
+    // РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РІРЅСѓС‚СЂРµРЅРЅРµРіРѕ Р±СѓС„РµСЂР° С„Р°Р№Р»Р°    
+    if (!BufferInitialize())
+        return false;
+
+    // С‡С‚РµРЅРёРµ Р·Р°РіРѕР»РѕРІРєР° DLIS         
+    if (!ReadStorageUnitLabel())
+        return false;
+
+    // С‡С‚РµРЅРёРµ РґР°РЅРЅС‹С… DLIS 
+    if (!ReadLogicalFiles())
+        return false;
+    
     return true;
 }
 
@@ -135,21 +159,15 @@ void CDLISParser::Shutdown()
     m_last_attribute = nullptr;
     m_last_column = nullptr;
     m_last_frame = nullptr;
-
-
 }
 
 
-void CDLISParser::CallbackNotifyFrame(DlisNotifyCallback func)
+void CDLISParser::CallbackNotifyFrame(DlisNotifyCallback func, void *params)
 {
     m_notify_frame_func = func;
+    m_notify_params     = params;
 }
 
-
-void CDLISParser::CallbackNotifyParams(void *params)
-{
-    m_notify_params = params;
-}
 
 
 char *CDLISParser::AttrGetString(DlisAttribute *attr, char *buf, size_t buf_len)
@@ -178,7 +196,7 @@ char *CDLISParser::AttrGetString(DlisAttribute *attr, char *buf, size_t buf_len)
                 char   *src; 
                 size_t  len_byte;
                 int     val = 0;
-                // в первом байте содержится размер, далее данные в байтах
+                // РІ РїРµСЂРІРѕРј Р±Р°Р№С‚Рµ СЃРѕРґРµСЂР¶РёС‚СЃСЏ СЂР°Р·РјРµСЂ, РґР°Р»РµРµ РґР°РЅРЅС‹Рµ РІ Р±Р°Р№С‚Р°С…
                 len_byte = *(byte *)attr->value->data;
                 src = attr->value->data + sizeof(byte);                
                 memcpy(&val, src, len_byte); 
@@ -259,15 +277,110 @@ int CDLISParser::AttrGetInt(DlisAttribute *attr)
     return r;
 }
 
+/*
+* 
+*/
+DlisAttribute *CDLISParser::FindColumnTemplate(DlisObject *object, DlisAttribute *attr)
+{
+    DlisAttribute  *ret = NULL;
+    DlisAttribute  *attribute;
+    DlisSet        *set = object->set;
 
-bool CDLISParser::FileOpen(const char *file_name)
+    ret       = set->colums;
+    attribute = object->attr;
+    while (ret)
+    {
+        if (attr == attribute)
+            break;
+
+        attribute = attribute->next;
+        ret       = ret->next;
+    }
+
+    return ret;
+}
+
+/*
+* 
+*/
+DlisAttribute *CDLISParser::FindAttribute(const DlisObject *object, const char *name_column)
+{
+    DlisAttribute   *column;
+    DlisAttribute   *attr;
+    DlisAttribute   *r = NULL;
+    DlisSet         *set = object->set;
+
+    column = set->colums;
+    attr   = object->attr;
+    while (column && attr)
+    {
+        if (strcmp(column->label, name_column) == 0)
+        {
+            r = attr;
+            break;
+        }
+
+        column = column->next;
+        attr   = attr->next; 
+        assert(attr != NULL);
+    }
+
+    return r;
+}
+
+/*
+* 
+*/
+DlisSet *CDLISParser::FindSubSet(const char *name_sub_set, DlisSet *root /*= NULL*/)
+{
+    DlisSet *r = NULL, *child;
+
+    if (!root)
+        root = m_last_root_set;
+
+    child = root->childs; 
+    while (child)
+    {
+        if (strcmp(child->type, name_sub_set) == 0)
+        {
+            r = child;
+            break; 
+        }
+        child = child->next;
+    }
+    return r;
+}
+
+/*
+* 
+*/
+DlisObject *CDLISParser::FindObject(DlisValueObjName *obj, DlisSet *set)
+{
+    DlisObject *r = NULL, *child;
+    
+    child = set->objects;
+    while (child)
+    {
+        if (ObjectNameCompare(&child->name, obj))
+        {
+            r = child;
+            break;
+        }
+        child = child->next;
+    }
+
+    return r;
+}
+
+
+bool CDLISParser::FileOpen(const wchar_t *file_name)
 {
     if (!file_name)
         return false;
 
     FileClose();
 
-    m_file = CreateFile(file_name, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    m_file = CreateFileW(file_name, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (m_file == INVALID_HANDLE_VALUE)
         return false;
         
@@ -299,66 +412,6 @@ bool CDLISParser::FileRead(char *data, DWORD len)
         return false;
 
     return true;
-}
-
-
-bool CDLISParser::FileWrite(const char *data, DWORD len)
-{
-    BOOL    r;
-    DWORD   writed = 0;
-
-    r = WriteFile(m_file, data, len, &writed, NULL);
-    
-    if (r == FALSE)
-        return false;
-    
-    if (writed != len)
-        return false;
-
-    return true;
-}
-
-
-UINT64 CDLISParser::FileSeekGet()
-{
-    UINT64  seek;
-
-    LONG    low_seek  = 0;
-    LONG    high_seek = 0;
-    
-    low_seek = SetFilePointer(m_file, 0, &high_seek, FILE_CURRENT);
-    
-    if (high_seek)
-    {
-        seek = ((UINT64)high_seek << 32) | low_seek;
-    }
-    else
-    {
-        seek = low_seek;
-    } 
-
-    return seek;
-}
-
-
-void CDLISParser::FileSeekSet(UINT64 offset)
-{
-    LONG  low_seek  = 0;
-    LONG  high_seek = 0;
-
-    // проверим в старшем DWORD есть значения?
-    if (offset & 0XFFFFFFFF00000000)
-    {
-        low_seek  = (LONG)(offset  & 0X00000000FFFFFFFF);
-        high_seek = (LONG)((offset & 0XFFFFFFFF00000000) >> 32);
-    }
-    else
-    {
-        low_seek  = (LONG)(offset & 0X00000000FFFFFFFF);
-        high_seek = 0;
-    }
-
-    SetFilePointer(m_file, low_seek, &high_seek, FILE_BEGIN);
 }
 
 
@@ -443,11 +496,11 @@ void CDLISParser::Big2LittelEndianByte(byte *bt)
 }
 
 /*
-*  чтение очередно порции данных из файла
+*  С‡С‚РµРЅРёРµ РѕС‡РµСЂРµРґРЅРѕ РїРѕСЂС†РёРё РґР°РЅРЅС‹С… РёР· С„Р°Р№Р»Р°
 */
 bool CDLISParser::BufferNext(char **data, size_t len)
 {
-    // если в буфере есть требуемой длины размер, копируем и выходим
+    // РµСЃР»Рё РІ Р±СѓС„РµСЂРµ РµСЃС‚СЊ С‚СЂРµР±СѓРµРјРѕР№ РґР»РёРЅС‹ СЂР°Р·РјРµСЂ, РєРѕРїРёСЂСѓРµРј Рё РІС‹С…РѕРґРёРј
     if (len <= m_file_chunk.remaind)      
     {
         *data = m_file_chunk.data + m_file_chunk.pos;
@@ -457,8 +510,8 @@ bool CDLISParser::BufferNext(char **data, size_t len)
         return true;
     }
 
-    // данных не хватило, читаем следующую порцию данных
-    // если есть остаток данных, копируем его в начало буфера
+    // РґР°РЅРЅС‹С… РЅРµ С…РІР°С‚РёР»Рѕ, С‡РёС‚Р°РµРј СЃР»РµРґСѓСЋС‰СѓСЋ РїРѕСЂС†РёСЋ РґР°РЅРЅС‹С…
+    // РµСЃР»Рё РµСЃС‚СЊ РѕСЃС‚Р°С‚РѕРє РґР°РЅРЅС‹С…, РєРѕРїРёСЂСѓРµРј РµРіРѕ РІ РЅР°С‡Р°Р»Рѕ Р±СѓС„РµСЂР°
     if (m_file_chunk.remaind) 
     {
         char *src, *dst;
@@ -473,25 +526,39 @@ bool CDLISParser::BufferNext(char **data, size_t len)
         m_file_chunk.size = 0;
 
 
-    // высчитаем правильный остаток данный который нужно вычитать из файла
+
     DWORD   amout;
-    
-    amout = min(FILE_CHUNK, (DWORD)(m_file_chunk.file_remaind));    
-    // резервируем память под новые данные
+    // РІС‹СЃС‡РёС‚Р°РµРј РїСЂР°РІРёР»СЊРЅС‹Р№ РѕСЃС‚Р°С‚РѕРє РґР°РЅРЅС‹Р№ РєРѕС‚РѕСЂС‹Р№ РЅСѓР¶РЅРѕ РІС‹С‡РёС‚Р°С‚СЊ РёР· С„Р°Р№Р»Р°
+    if (FILE_CHUNK > (DWORD)m_file_chunk.file_remaind)
+        amout = (DWORD)m_file_chunk.file_remaind;
+    else
+        amout = FILE_CHUNK;
+
+    // СЂРµР·РµСЂРІРёСЂСѓРµРј РїР°РјСЏС‚СЊ РїРѕРґ РЅРѕРІС‹Рµ РґР°РЅРЅС‹Рµ
     if (!m_file_chunk.Resize(amout + m_file_chunk.remaind))
         return false;
- 
-    // вычитываем данные
-    if (!FileRead(m_file_chunk.data + m_file_chunk.remaind, amout))
-        return false; 
+    // РІС‹С‡РёС‚С‹РІР°РµРј РґР°РЅРЅС‹Рµ
+    if (m_state & STATE_MODE_FILE) 
+    {
+        if (!FileRead(m_file_chunk.data + m_file_chunk.remaind, amout))
+            return false; 
+    }
+    else if (m_state & STATE_MODE_IODEVICE)
+    {
+        qint64 readed;
 
-    // изменим счетчики
+        readed = m_device->read(m_file_chunk.data + m_file_chunk.remaind, amout);
+        if (readed != amout)
+            return false;
+    }
+
+    // РёР·РјРµРЅРёРј СЃС‡РµС‚С‡РёРє
     m_file_chunk.file_remaind -= amout;
     m_file_chunk.remaind      += amout;
     m_file_chunk.pos           = 0;
     m_file_chunk.size_chunk    = m_file_chunk.remaind;
     
-    // отдаем данные размера len,  
+    // РѕС‚РґР°РµРј РґР°РЅРЅС‹Рµ СЂР°Р·РјРµСЂР° len, 
     if (len <= m_file_chunk.remaind)      
     {
         *data = m_file_chunk.data;
@@ -501,7 +568,7 @@ bool CDLISParser::BufferNext(char **data, size_t len)
         return true;
     }
 
-    // если не получается, значит произошла ошибка 
+    // РµСЃР»Рё РЅРµ РїРѕР»СѓС‡Р°РµС‚СЃСЏ, Р·РЅР°С‡РёС‚ РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°
     return false;
 }
 
@@ -510,13 +577,19 @@ bool CDLISParser::BufferInitialize()
 {
     m_file_chunk.Free();
     memset(&m_file_chunk, 0, sizeof(m_file_chunk));
-    
-    m_file_chunk.file_remaind = FileSize();
+
+    if (m_state & STATE_MODE_FILE)
+        m_file_chunk.file_remaind = FileSize();
+    else if (m_state & STATE_MODE_IODEVICE)
+        m_file_chunk.file_remaind = m_device->size();
+    else
+        return false;
+
     return true;
 }
 
 /*
-* провера конца файла
+* РїСЂРѕРІРµСЂР° РєРѕРЅС†Р° С„Р°Р№Р»Р°
 */
 bool CDLISParser::BufferIsEOF()
 {
@@ -530,28 +603,28 @@ bool CDLISParser::BufferIsEOF()
 }
 
 /*
-*  получаем следующий сегмент данных 
+*  РїРѕР»СѓС‡Р°РµРј СЃР»РµРґСѓСЋС‰РёР№ СЃРµРіРјРµРЅС‚ РґР°РЅРЅС‹С… 
 */
 bool CDLISParser::SegmentGet()
 {
     bool r = true;
-    // если данных не хватает в текущем visible record, читаем следующую visible record
+    // РµСЃР»Рё РґР°РЅРЅС‹С… РЅРµ С…РІР°С‚Р°РµС‚ РІ С‚РµРєСѓС‰РµРј visible record, С‡РёС‚Р°РµРј СЃР»РµРґСѓСЋС‰СѓСЋ visible record
     if (m_visible_record.current >= m_visible_record.end)
         r = VisibleRecordNext();
 
     if (!r)
         return false;
 
-    // указатель на заголовок
+    // СѓРєР°Р·Р°С‚РµР»СЊ РЅР° Р·Р°РіРѕР»РѕРІРѕРє
     m_segment_header = *(SegmentHeader *)m_visible_record.current; 
 
-    //  получим полный размер сегмента и его атрибуты
+    //  РїРѕР»СѓС‡РёРј РїРѕР»РЅС‹Р№ СЂР°Р·РјРµСЂ СЃРµРіРјРµРЅС‚Р° Рё РµРіРѕ Р°С‚СЂРёР±СѓС‚С‹
     Big2LittelEndian(&(m_segment_header.length), sizeof(m_segment_header.length));
     Big2LittelEndianByte(&m_segment_header.attributes);
     
 
     short  size_header = (short)(offsetof(SegmentHeader, length_data));
-    // рассчитаем актуальный размер сегмента (содержащий данные  без метаданных)
+    // СЂР°СЃСЃС‡РёС‚Р°РµРј Р°РєС‚СѓР°Р»СЊРЅС‹Р№ СЂР°Р·РјРµСЂ СЃРµРіРјРµРЅС‚Р° (СЃРѕРґРµСЂР¶Р°С‰РёР№ РґР°РЅРЅС‹Рµ  Р±РµР· РјРµС‚Р°РґР°РЅРЅС‹С…)
     m_segment_header.length_data = m_segment_header.length - size_header;
 
     if (m_segment_header.attributes & Trailing_Length)
@@ -564,10 +637,10 @@ bool CDLISParser::SegmentGet()
     {
         byte  *pad_len;
         char  *data;  
-        // рассчитаем количество padding (выравнивающих) символов для этого :
-        // прочитаем значение по адресу 
-        // начальное смещение + размер данных - 1 байт (т.к. в этом месте находится значение количества padding байт)
-        // по этому адресу содержится количество padding символов
+        // СЂР°СЃСЃС‡РёС‚Р°РµРј РєРѕР»РёС‡РµСЃС‚РІРѕ padding (РІС‹СЂР°РІРЅРёРІР°СЋС‰РёС…) СЃРёРјРІРѕР»РѕРІ РґР»СЏ СЌС‚РѕРіРѕ :
+        // РїСЂРѕС‡РёС‚Р°РµРј Р·РЅР°С‡РµРЅРёРµ РїРѕ Р°РґСЂРµСЃСѓ 
+        // РЅР°С‡Р°Р»СЊРЅРѕРµ СЃРјРµС‰РµРЅРёРµ + СЂР°Р·РјРµСЂ РґР°РЅРЅС‹С… - 1 Р±Р°Р№С‚ (С‚.Рє. РІ СЌС‚РѕРј РјРµСЃС‚Рµ РЅР°С…РѕРґРёС‚СЃСЏ Р·РЅР°С‡РµРЅРёРµ РєРѕР»РёС‡РµСЃС‚РІР° padding Р±Р°Р№С‚)
+        // РїРѕ СЌС‚РѕРјСѓ Р°РґСЂРµСЃСѓ СЃРѕРґРµСЂР¶РёС‚СЃСЏ РєРѕР»РёС‡РµСЃС‚РІРѕ padding СЃРёРјРІРѕР»РѕРІ
         data = m_visible_record.current + size_header;
         
         pad_len = (byte *)(data) + m_segment_header.length_data - sizeof(byte);
@@ -576,37 +649,30 @@ bool CDLISParser::SegmentGet()
     }
     
 
-    // выставим значения сегмента, его актуальный размер, начало и конец
+    // РІС‹СЃС‚Р°РІРёРј Р·РЅР°С‡РµРЅРёСЏ СЃРµРіРјРµРЅС‚Р°, РµРіРѕ Р°РєС‚СѓР°Р»СЊРЅС‹Р№ СЂР°Р·РјРµСЂ, РЅР°С‡Р°Р»Рѕ Рё РєРѕРЅРµС†
     m_segment.current = m_visible_record.current + size_header;
     m_segment.end     = m_segment.current + m_segment_header.length_data;
     m_segment.len     = m_segment_header.length_data;
 
     m_visible_record.current += m_segment_header.length;
+
     return true;
 }
 
 /*
-*  обрабатываем сегмент
+*  РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј СЃРµРіРјРµРЅС‚
 */
 bool CDLISParser::SegmentProcess()
 {
-
     bool r = true;
 
     if (m_segment_header.attributes & Logical_Record_Structure)
     {
-        // первый сегмент в логическом файле 
-        if (m_segment_header.type == FHLR)
-        {
-
-        }
-
-
-        // последовательно вычитываем компоненты
+        // РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ РІС‹С‡РёС‚С‹РІР°РµРј РєРѕРјРїРѕРЅРµРЅС‚С‹
         r = ComponentRead();
         while (r)
         {
-            // конец сегмента, выходим для получения новой порции данных
+            // РєРѕРЅРµС† СЃРµРіРјРµРЅС‚Р°, РІС‹С…РѕРґРёРј РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ РЅРѕРІРѕР№ РїРѕСЂС†РёРё РґР°РЅРЅС‹С…
             if (m_segment.current >= m_segment.end)
                 break;
 
@@ -619,16 +685,16 @@ bool CDLISParser::SegmentProcess()
             r = ReadIndirectlyFormattedLogicalRecord();
 
     }
-    return r;
 
+    return r;
 }
 
 /*
-*  получаем следующую visible record  
+*  РїРѕР»СѓС‡Р°РµРј СЃР»РµРґСѓСЋС‰СѓСЋ visible record  
 */
 bool CDLISParser::VisibleRecordNext()
 {
-    // обнулим текущую структуру
+    // РѕР±РЅСѓР»РёРј С‚РµРєСѓС‰СѓСЋ СЃС‚СЂСѓРєС‚СѓСЂСѓ
     m_visible_record.current = NULL;
     m_visible_record.end     = NULL;
     m_visible_record.len     = 0;    
@@ -636,7 +702,7 @@ bool CDLISParser::VisibleRecordNext()
     char                 *data;
     VisibleRecordHeader  *header;
 
-    // читаем заголовок
+    // С‡РёС‚Р°РµРј Р·Р°РіРѕР»РѕРІРѕРє
     bool r = BufferNext(&data, sizeof(VisibleRecordHeader));
 
     if (r) 
@@ -645,7 +711,7 @@ bool CDLISParser::VisibleRecordNext()
         Big2LittelEndian(&((*header).length), sizeof(header->length));
     }
 
-    // читаем visible record размером указанным в заголовке 
+    // С‡РёС‚Р°РµРј visible record СЂР°Р·РјРµСЂРѕРј СѓРєР°Р·Р°РЅРЅС‹Рј РІ Р·Р°РіРѕР»РѕРІРєРµ 
     if (r)
     {
         char *record;
@@ -664,7 +730,7 @@ bool CDLISParser::VisibleRecordNext()
 }
 
 /*
-*  читаем заголовок DLIS
+*  С‡РёС‚Р°РµРј Р·Р°РіРѕР»РѕРІРѕРє DLIS
 */
 bool CDLISParser::ReadStorageUnitLabel()
 {
@@ -681,7 +747,7 @@ bool CDLISParser::ReadStorageUnitLabel()
 
 
 /*
-*  читаем последовательно сегменты
+*  С‡РёС‚Р°РµРј РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ СЃРµРіРјРµРЅС‚С‹
 */
 bool CDLISParser::ReadLogicalFiles()
 {
@@ -690,6 +756,7 @@ bool CDLISParser::ReadLogicalFiles()
     while (r)
     {
         r = SegmentGet();
+
         if (r)
             r = SegmentProcess();
 
@@ -702,7 +769,7 @@ bool CDLISParser::ReadLogicalFiles()
 }
 
 /*
-* читаем компонет DLIS и обрабатываем его 
+* С‡РёС‚Р°РµРј РєРѕРјРїРѕРЅРµС‚ DLIS Рё РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј РµРіРѕ 
 */
 bool CDLISParser::ComponentRead()
 {
@@ -735,19 +802,9 @@ bool CDLISParser::ComponentHeaderGet()
 {
     byte desc = *(byte *)m_segment.current;
    
-    if (g_global_log->IsCompareFilesMode())
-    {
-        int test_component_header = 0;
-        int component_header      = desc;
-
-        g_global_log->ReadInt32(&test_component_header);
-         
-        assert(test_component_header == component_header);   
-    }
-
-    // получим роль и формат Component-а
-    // для получения role сбросим вехрние 5 бит
-    // для получние format сбросим нижние 3 бита
+    // РїРѕР»СѓС‡РёРј СЂРѕР»СЊ Рё С„РѕСЂРјР°С‚ Component-Р°
+    // РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ role СЃР±СЂРѕСЃРёРј РІРµС…СЂРЅРёРµ 5 Р±РёС‚
+    // РґР»СЏ РїРѕР»СѓС‡РЅРёРµ format СЃР±СЂРѕСЃРёРј РЅРёР¶РЅРёРµ 3 Р±РёС‚Р°
     m_component_header.role   = (desc & 0xE0) >> 5;
     m_component_header.format = (desc & 0x1F);
     Big2LittelEndianByte(&m_component_header.format);
@@ -761,36 +818,36 @@ bool CDLISParser::ComponentHeaderGet()
 }
 
 /*
-* читаем сырые данные из буфера
+* С‡РёС‚Р°РµРј СЃС‹СЂС‹Рµ РґР°РЅРЅС‹Рµ РёР· Р±СѓС„РµСЂР°
 */
 bool CDLISParser::ReadRawData(void *dst, size_t len)
 {
-    // проверяем хватает ли нам данных в сегменте?
+    // РїСЂРѕРІРµСЂСЏРµРј С…РІР°С‚Р°РµС‚ Р»Рё РЅР°Рј РґР°РЅРЅС‹С… РІ СЃРµРіРјРµРЅС‚Рµ?
     if (len > m_segment.len)
     {
-        // если не хватает, проверяем это не последний сегмент в группе сегментов? Если последний, то ошибка
+        // РµСЃР»Рё РЅРµ С…РІР°С‚Р°РµС‚, РїСЂРѕРІРµСЂСЏРµРј СЌС‚Рѕ РЅРµ РїРѕСЃР»РµРґРЅРёР№ СЃРµРіРјРµРЅС‚ РІ РіСЂСѓРїРїРµ СЃРµРіРјРµРЅС‚РѕРІ? Р•СЃР»Рё РїРѕСЃР»РµРґРЅРёР№, С‚Рѕ РѕС€РёР±РєР°
         if ( !(m_segment_header.attributes & Successor))
         {
-            assert(false); 
+            //assert(false); 
             return false;
         }
 
-        // вычитываем остаток данных из текущего сегмента
+        // РІС‹С‡РёС‚С‹РІР°РµРј РѕСЃС‚Р°С‚РѕРє РґР°РЅРЅС‹С… РёР· С‚РµРєСѓС‰РµРіРѕ СЃРµРіРјРµРЅС‚Р°
         size_t old_len = m_segment.len;
 
-        // копируем остаток данных из старого буфера
+        // РєРѕРїРёСЂСѓРµРј РѕСЃС‚Р°С‚РѕРє РґР°РЅРЅС‹С… РёР· СЃС‚Р°СЂРѕРіРѕ Р±СѓС„РµСЂР°
         memcpy(dst, m_segment.current, old_len);
         len -= old_len;
 
-        // получаем новый сегмент
+        // РїРѕР»СѓС‡Р°РµРј РЅРѕРІС‹Р№ СЃРµРіРјРµРЅС‚
         if ( !SegmentGet())
             return false;
 
-        // проверим, в сегменте хватает данных или нет?
+        // РїСЂРѕРІРµСЂРёРј, РІ СЃРµРіРјРµРЅС‚Рµ С…РІР°С‚Р°РµС‚ РґР°РЅРЅС‹С… РёР»Рё РЅРµС‚?
         if (m_segment.len < len)
             return false;
 
-        // до-копируем остаток требуемых данных из нового сегмента 
+        // РґРѕ-РєРѕРїРёСЂСѓРµРј РѕСЃС‚Р°С‚РѕРє С‚СЂРµР±СѓРµРјС‹С… РґР°РЅРЅС‹С… РёР· РЅРѕРІРѕРіРѕ СЃРµРіРјРµРЅС‚Р° 
         memcpy( ((char *)dst) + old_len, m_segment.current, len);
 
         m_segment.current += len;
@@ -799,7 +856,7 @@ bool CDLISParser::ReadRawData(void *dst, size_t len)
         return true;
     }
 
-    // данных хватает, просто вычитываем требуемый объем данных
+    // РґР°РЅРЅС‹С… С…РІР°С‚Р°РµС‚, РїСЂРѕСЃС‚Рѕ РІС‹С‡РёС‚С‹РІР°РµРј С‚СЂРµР±СѓРµРјС‹Р№ РѕР±СЉРµРј РґР°РЅРЅС‹С…
     memcpy(dst, m_segment.current, len);
     
     m_segment.current += len;
@@ -809,24 +866,24 @@ bool CDLISParser::ReadRawData(void *dst, size_t len)
 }
 
 /*
-* вычитываем данные по representation code
+* РІС‹С‡РёС‚С‹РІР°РµРј РґР°РЅРЅС‹Рµ РїРѕ representation code
 */
 bool CDLISParser::ReadCodeSimple(RepresentationCodes code, void **dst, size_t *len)
 {
-    // резервируем данные для быстрого доступа 8 килобайт
+    // СЂРµР·РµСЂРІРёСЂСѓРµРј РґР°РЅРЅС‹Рµ РґР»СЏ Р±С‹СЃС‚СЂРѕРіРѕ РґРѕСЃС‚СѓРїР° 8 РєРёР»РѕР±Р°Р№С‚
     static byte buf[8 * Kb] = { 0 };
     int    type_len;
 
     memset(&buf[0], 0, sizeof(buf));
 
-    // получаем размер representation code
+    // РїРѕР»СѓС‡Р°РµРј СЂР°Р·РјРµСЂ representation code
     type_len = s_rep_codes_length[code - 1].length;
 
-    // сложные данные функция обрабатывать не умеет 
+    // СЃР»РѕР¶РЅС‹Рµ РґР°РЅРЅС‹Рµ С„СѓРЅРєС†РёСЏ РѕР±СЂР°Р±Р°С‚С‹РІР°С‚СЊ РЅРµ СѓРјРµРµС‚ 
     if (type_len == REP_CODE_VARIABLE_COMPLEX)
         assert(false);
 
-    // если размер известен, просто копируем их в буфер и выходим
+    // РµСЃР»Рё СЂР°Р·РјРµСЂ РёР·РІРµСЃС‚РµРЅ, РїСЂРѕСЃС‚Рѕ РєРѕРїРёСЂСѓРµРј РёС… РІ Р±СѓС„РµСЂ Рё РІС‹С…РѕРґРёРј
     if (type_len > 0)
     {
         ReadRawData(buf, type_len);
@@ -853,7 +910,7 @@ bool CDLISParser::ReadCodeSimple(RepresentationCodes code, void **dst, size_t *l
         return true;
     }
 
-    // читаем вариативные данные
+    // С‡РёС‚Р°РµРј РІР°СЂРёР°С‚РёРІРЅС‹Рµ РґР°РЅРЅС‹Рµ
     switch (code)
     {
         case RC_IDENT:
@@ -863,16 +920,16 @@ bool CDLISParser::ReadCodeSimple(RepresentationCodes code, void **dst, size_t *l
                 size_t   count;
                 void    *ptr;
                 UINT     str_len = 0;
-                // в зависимости от code сначала читаем размер данных        
+                // РІ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ code СЃРЅР°С‡Р°Р»Р° С‡РёС‚Р°РµРј СЂР°Р·РјРµСЂ РґР°РЅРЅС‹С…  
                 if (code == RC_ASCII)
                     ReadCodeSimple(RC_UVARI,  &ptr, &count);
                 else
                     ReadCodeSimple(RC_USHORT, &ptr, &count);
 
-                // получаем размер данных в байтах
+                // РїРѕР»СѓС‡Р°РµРј СЂР°Р·РјРµСЂ РґР°РЅРЅС‹С… РІ Р±Р°Р№С‚Р°С…
                 assert(count <= sizeof(str_len));
                 memcpy(&str_len, ptr, count);
-                // читаем сами данные
+                // С‡РёС‚Р°РµРј СЃР°РјРё РґР°РЅРЅС‹Рµ
                 ReadRawData(buf, str_len);
 
                 *len = str_len;
@@ -885,13 +942,13 @@ bool CDLISParser::ReadCodeSimple(RepresentationCodes code, void **dst, size_t *l
             {
                 byte  var_len;
 
-                // определим размер данных
-                // верхние 2 бита определяют полное количество байт которое надо считать,
-                // в 6 нижних, лежат данные 
+                // РѕРїСЂРµРґРµР»РёРј СЂР°Р·РјРµСЂ РґР°РЅРЅС‹С…
+                // РІРµСЂС…РЅРёРµ 2 Р±РёС‚Р° РѕРїСЂРµРґРµР»СЏСЋС‚ РїРѕР»РЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ Р±Р°Р№С‚ РєРѕС‚РѕСЂРѕРµ РЅР°РґРѕ СЃС‡РёС‚Р°С‚СЊ,
+                // РІ 6 РЅРёР¶РЅРёС…, Р»РµР¶Р°С‚ РґР°РЅРЅС‹Рµ 
                 memset(&buf[0], 0, sizeof(buf));
                 ReadRawData(buf, 1);
 
-                // определим полный размер в байтах который нужно считать               
+                // РѕРїСЂРµРґРµР»РёРј РїРѕР»РЅС‹Р№ СЂР°Р·РјРµСЂ РІ Р±Р°Р№С‚Р°С… РєРѕС‚РѕСЂС‹Р№ РЅСѓР¶РЅРѕ СЃС‡РёС‚Р°С‚СЊ               
                 if ((*buf & 0xC0) == 0xC0)
                 {
                     var_len = 4;
@@ -905,11 +962,11 @@ bool CDLISParser::ReadCodeSimple(RepresentationCodes code, void **dst, size_t *l
                 else
                     var_len = 1;
 
-                // дочитаем данные
+                // РґРѕС‡РёС‚Р°РµРј РґР°РЅРЅС‹Рµ
                 if (var_len > 1)
                     ReadRawData(&buf[1], var_len - 1);
 
-                // конвертируем считанные данные 
+                // РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј СЃС‡РёС‚Р°РЅРЅС‹Рµ РґР°РЅРЅС‹Рµ 
                 Big2LittelEndian(buf, var_len);
 
                 *len = var_len;
@@ -1023,7 +1080,7 @@ bool CDLISParser::ReadIndirectlyFormattedLogicalRecord()
     }
 
     if (!FrameDataParse(frame))
-        return false;
+        return true;
 
 
     return true;
@@ -1164,30 +1221,7 @@ void CDLISParser::AttributeAdd(DlisAttribute *attribute)
 /*
 * 
 */
-void CDLISParser::FrameAdd(DlisFrameData *frame)
-{
-   *m_frame_tail      = frame;
-
-    m_frame_tail      = &(frame->next);
-    m_last_frame = frame;
-
-    DlisSet *set_file_header;
-
-    set_file_header = m_sets;
-    while (set_file_header)
-    {
-        if (set_file_header->next)
-            set_file_header = set_file_header->next;
-        else
-            break;
-    }
-    set_file_header->frame_count++;
-}
-
-/*
-* 
-*/
-bool CDLISParser::ObjectNameCompare(DlisValueObjName *left, DlisValueObjName *rigth)
+bool CDLISParser::ObjectNameCompare(const DlisValueObjName *left, const DlisValueObjName *rigth)
 {
     bool r;
 
@@ -1235,96 +1269,7 @@ char  *CDLISParser::StringTrim(char *str, size_t *len)
     return begin;
 }
 
-/*
-* 
-*/
-DlisAttribute *CDLISParser::FindColumnTemplate(DlisSet *set, DlisObject *object, DlisAttribute *attr)
-{
-    DlisAttribute *ret = NULL;
-    DlisAttribute *attribute;
 
-    ret       = set->colums;
-    attribute = object->attr;
-    while (ret)
-    {
-        if (attr == attribute)
-            break;
-
-        attribute = attribute->next;
-        ret       = ret->next;
-    }
-
-    return ret;
-}
-
-/*
-* 
-*/
-DlisAttribute * CDLISParser::FindAttribute(DlisSet *set, DlisObject *object, char *name_column)
-{
-    DlisAttribute     *column;
-    DlisAttribute     *attr;
-    DlisAttribute     *r = NULL;
-
-
-    column = set->colums;
-    attr   = object->attr;
-    while (column && attr)
-    {
-        if (strcmp(column->label, name_column) == 0)
-        {
-            r = attr;
-            break;
-        }
-
-        column = column->next;
-        attr   = attr->next; 
-        assert(attr != NULL);
-    }
-
-    return r;
-}
-
-/*
-* 
-*/
-DlisSet *CDLISParser::FindSubSet(char *name_sub_set, DlisSet *root)
-{
-    DlisSet *r = NULL, *child;
-
-    child = root->childs; 
-    while (child)
-    {
-        if (strcmp(child->type, name_sub_set) == 0)
-        {
-            r = child;
-            break; 
-        }
-        child = child->next;
-    }
-    return r;
-}
-
-/*
-* 
-*/
-DlisObject *CDLISParser::FindObject(DlisValueObjName *obj, DlisSet *set)
-{
-    DlisObject *r = NULL, *child;
-    
-    child = set->objects;
-    while (child)
-    {
-        if (ObjectNameCompare(&child->name, obj))
-        {
-            r = child;
-            break;
-        }
-        child = child->next;
-    }
-
-    return r;
-}
 
 
 CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
@@ -1355,9 +1300,8 @@ CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
     
     if (!obj_channel)
         return NULL;
-   
-    // get attribute CHANNELS from
-    attr = FindAttribute(frame, obj_channel, "CHANNELS");
+    
+    attr = FindAttribute(obj_channel, "CHANNELS");
     if (!attr)
         return NULL;
 
@@ -1389,14 +1333,14 @@ CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
         obj_channel = FindObject(name, channel);
         if (!obj_channel)
             return NULL;
-       
-        found = FindAttribute(channel, obj_channel, "REPRESENTATION-CODE");
+        
+        found = FindAttribute(obj_channel, "REPRESENTATION-CODE");
         if (!found)
             return NULL;
 
         channels->code = (RepresentationCodes) AttrGetInt(found);
 
-        found = FindAttribute(channel, obj_channel, "DIMENSION");
+        found = FindAttribute(obj_channel, "DIMENSION");
         if (!found)
             return NULL;
 
@@ -1491,7 +1435,7 @@ CDLISParser::FrameData *CDLISParser::FrameDataFind(DlisValueObjName *obj_name)
 }
 
 /*
-*  читаем Set
+*  С‡РёС‚Р°РµРј Set
 */
 bool CDLISParser::ReadSet()
 {
@@ -1538,7 +1482,7 @@ bool CDLISParser::ReadSet()
 }
 
 /*
-* читаем объект
+* С‡РёС‚Р°РµРј РѕР±СЉРµРєС‚
 */
 bool CDLISParser::ReadObject()
 {
@@ -1553,22 +1497,23 @@ bool CDLISParser::ReadObject()
     {
         ReadCodeComplex(RC_OBNAME, (void **)&obj->name);
     }
+    
+    // 
+    obj->set = m_last_set;
 
     ObjectAdd(obj);
     return true;
 }
 
 /*
-* читаем атрибут объекта или шаблона (template)
+* С‡РёС‚Р°РµРј Р°С‚СЂРёР±СѓС‚ РѕР±СЉРµРєС‚Р° РёР»Рё С€Р°Р±Р»РѕРЅР° (template)
 */
 bool CDLISParser::ReadAttribute()
 {
     char      *val;
     size_t     len;
-    UINT       count            = 1;
-    RepresentationCodes rep_code = RC_IDENT;
 
-    // если первый атрибут, определим это атрибут объекта или шаблона
+    // РµСЃР»Рё РїРµСЂРІС‹Р№ Р°С‚СЂРёР±СѓС‚, РѕРїСЂРµРґРµР»РёРј СЌС‚Рѕ Р°С‚СЂРёР±СѓС‚ РѕР±СЉРµРєС‚Р° РёР»Рё С€Р°Р±Р»РѕРЅР°
     if (m_state & STATE_PARSER_SET)
     {
         FlagsParserSet(STATE_PARSER_TEMPLATE_ATTRIBUTE);
@@ -1590,7 +1535,7 @@ bool CDLISParser::ReadAttribute()
     else
         AttributeAdd(attr);
 
-    // последовательно читаем свойства атрибута
+    // РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ С‡РёС‚Р°РµРј СЃРІРѕР№СЃС‚РІР° Р°С‚СЂРёР±СѓС‚Р°
     if (m_component_header.format & TypeAttribute::TypeAttrLable)
     {
         ReadCodeSimple(RC_IDENT, (void **)&val, &len);
@@ -1615,7 +1560,7 @@ bool CDLISParser::ReadAttribute()
         {
             DlisAttribute *column;
 
-            column = FindColumnTemplate(m_last_set, m_last_object, attr);
+            column = FindColumnTemplate(m_last_object, attr);
             if (column)
                 attr->code = column->code;
             else
@@ -1654,168 +1599,4 @@ bool CDLISParser::ReadAttribute()
     }
 
     return true;
-}
-/*
-* принтуем код объекта в его строковое описание (для отладки)
-*/
-void CDLISParser::DebugPrintRepCode(RepresentationCodes code, char *str_rep_code, size_t size)
-{
-    
-    str_rep_code[0] = 0;
-
-    switch (code)
-    {
-    case    RC_FSHORT:
-        strcpy_s(str_rep_code, size, "FSHORT");
-        break;
-
-    case    RC_FSINGL:
-        strcpy_s(str_rep_code, size, "FSINGL");
-        break;
-
-    case    RC_FSING1:
-        strcpy_s(str_rep_code, size, "FSING1");
-        break;
-
-    case    RC_FSING2:
-        strcpy_s(str_rep_code, size, "FSING2");
-        break;
-
-    case    RC_ISINGL:
-        strcpy_s(str_rep_code, size, "ISINGL");
-        break;
-
-    case    RC_VSINGL:
-        strcpy_s(str_rep_code, size, "VSINGL");
-        break;
-
-    case    RC_FDOUBL:
-        strcpy_s(str_rep_code, size, "FDOUBL");
-        break;
-
-    case    RC_FDOUB1:
-        strcpy_s(str_rep_code, size, "FDOUB1");
-        break;
-
-    case    RC_FDOUB2:
-        strcpy_s(str_rep_code, size, "FDOUB2");
-        break;
-
-    case    RC_CSINGL:
-        strcpy_s(str_rep_code, size, "CSINGL");
-        break;
-
-    case    RC_CDOUBL:
-        strcpy_s(str_rep_code, size, "CDOUBL");
-        break;
-
-    case    RC_SSHORT:
-        strcpy_s(str_rep_code, size, "SSHORT");
-        break;
-
-    case    RC_SNORM:
-        strcpy_s(str_rep_code, size, "SNORM");
-        break;
-
-    case    RC_SLONG:
-        strcpy_s(str_rep_code, size, "SLONG");
-        break;
-
-    case    RC_USHORT:
-        strcpy_s(str_rep_code, size, "USHORT");
-        break;
-
-    case    RC_UNORM:
-        strcpy_s(str_rep_code, size, "UNORM");
-        break;
-
-    case    RC_ULONG:
-        strcpy_s(str_rep_code, size, "ULONG");
-        break;
-
-    case    RC_UVARI:
-        strcpy_s(str_rep_code, size, "UVARI");
-        break;
-
-    case    RC_IDENT:
-        strcpy_s(str_rep_code, size, "IDENT");
-        break;
-
-    case    RC_ASCII:
-        strcpy_s(str_rep_code, size, "ASCII");
-        break;
-
-    case    RC_DTIME:
-        strcpy_s(str_rep_code, size, "DTIME");
-        break;
-
-    case    RC_ORIGIN:
-        strcpy_s(str_rep_code, size, "ORIGIN");
-        break;
-
-    case    RC_OBNAME:
-        strcpy_s(str_rep_code, size, "OBNAME");
-        break;
-
-    case    RC_OBJREF:
-        strcpy_s(str_rep_code, size, "OBJREF");
-        break;
-
-    case    RC_ATTREF:
-        strcpy_s(str_rep_code, size, "ATTREF");
-        break;
-
-    case    RC_STATUS:
-        strcpy_s(str_rep_code, size, "STATUS");
-        break;
-
-    case    RC_UNITS:
-        strcpy_s(str_rep_code, size, "UNITS");
-        break;
-
-    default: 
-        break;
-    }
-
-}
-
-
-void CDLISParser::DebugPrintAttrCode(UINT attr_code, char *str_attr_code, size_t size)
-{
-    str_attr_code[0] = 0;   
-   
-    switch (attr_code)
-    {
-        case Absent_Attribute:
-            strcpy_s(str_attr_code, size, "Absent Attribute");
-            break;
-    
-        case Attribute: 
-            strcpy_s(str_attr_code, size, "Attribute");
-            break;
-    
-        case Invariant_Attribute: 
-            strcpy_s(str_attr_code, size, "Invariant Attribute");
-            break;
-    
-        case Object:
-            strcpy_s(str_attr_code, size, "Object");
-            break;
-    
-        case Redundant_Set:
-            strcpy_s(str_attr_code, size, "Redundant Set");
-            break;
-    
-        case Replacement_Set:
-            strcpy_s(str_attr_code, size, "Replacement Set");
-            break;
-
-        case Set:
-            strcpy_s(str_attr_code, size, "Set");
-            break;
-
-        default:
-            break;
-    }
-
 }
