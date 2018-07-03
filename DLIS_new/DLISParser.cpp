@@ -38,7 +38,7 @@ CDLISParser::RepresentaionCodesLenght CDLISParser::s_rep_codes_length[RC_LAST] =
 };
 
 
-CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_device(NULL), m_state(STATE_PARSER_FIRST), 
+CDLISParser::CDLISParser() : m_file(INVALID_HANDLE_VALUE), m_state(STATE_PARSER_FIRST), 
     m_sets(NULL), m_set_tail(NULL), m_object_tail(NULL), m_attribute_tail(NULL), m_column_tail(NULL),m_frame_tail(NULL),
     m_last_set(NULL), m_last_root_set(NULL), m_last_object(NULL), m_last_column(NULL), m_last_attribute(NULL),
     m_pull_id_strings(0), m_pull_id_objects(0), m_pull_id_frame_data(0), 
@@ -67,8 +67,6 @@ bool CDLISParser::Parse(const wchar_t *file_name)
     // открываем файл
     if (!FileOpen(file_name))
         return false;
-    
-    m_state |= STATE_MODE_FILE;
 
     // инициализация внутреннего буфера файла    
     if (!BufferInitialize())
@@ -84,31 +82,6 @@ bool CDLISParser::Parse(const wchar_t *file_name)
 
     return true;
 }
-
-
-bool CDLISParser::Parse(QIODevice *device)
-{
-    if (!device)
-        return false;
-
-    m_state |= STATE_MODE_IODEVICE;
-    m_device = device;
-
-    // инициализация внутреннего буфера файла    
-    if (!BufferInitialize())
-        return false;
-
-    // чтение заголовка DLIS         
-    if (!ReadStorageUnitLabel())
-        return false;
-
-    // чтение данных DLIS 
-    if (!ReadLogicalFiles())
-        return false;
-    
-    return true;
-}
-
 
 bool CDLISParser::Initialize()
 {
@@ -538,20 +511,8 @@ bool CDLISParser::BufferNext(char **data, size_t len)
     if (!m_file_chunk.Resize(amout + m_file_chunk.remaind))
         return false;
     // вычитываем данные
-    if (m_state & STATE_MODE_FILE) 
-    {
-        if (!FileRead(m_file_chunk.data + m_file_chunk.remaind, amout))
-            return false; 
-    }
-    else if (m_state & STATE_MODE_IODEVICE)
-    {
-        qint64 readed;
-
-        readed = m_device->read(m_file_chunk.data + m_file_chunk.remaind, amout);
-        if (readed != amout)
-            return false;
-    }
-
+    if (!FileRead(m_file_chunk.data + m_file_chunk.remaind, amout))
+        return false; 
     // изменим счетчик
     m_file_chunk.file_remaind -= amout;
     m_file_chunk.remaind      += amout;
@@ -578,13 +539,7 @@ bool CDLISParser::BufferInitialize()
     m_file_chunk.Free();
     memset(&m_file_chunk, 0, sizeof(m_file_chunk));
 
-    if (m_state & STATE_MODE_FILE)
-        m_file_chunk.file_remaind = FileSize();
-    else if (m_state & STATE_MODE_IODEVICE)
-        m_file_chunk.file_remaind = m_device->size();
-    else
-        return false;
-
+    m_file_chunk.file_remaind = FileSize();
     return true;
 }
 

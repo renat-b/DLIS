@@ -1,8 +1,5 @@
 #pragma once 
 
-#include    "QIODevice.h"
-#include    "QFile.h"
-
 #if defined(_MSC_VER)
 #include "new.h"
 #endif
@@ -36,9 +33,6 @@ private:
         STATE_PARSER_TEMPLATE_ATTRIBUTE = 0x04,
         STATE_PARSER_ATTRIBUTE    = 0x08, 
         STATE_PARSER_ALL          = STATE_PARSER_SET | STATE_PARSER_OBJECT | STATE_PARSER_TEMPLATE_ATTRIBUTE | STATE_PARSER_ATTRIBUTE,
-
-        STATE_MODE_FILE           = 0x10,
-        STATE_MODE_IODEVICE       = 0x20,
         //
         REP_CODE_VARIABLE_SIMPLE  = -1,
         REP_CODE_VARIABLE_COMPLEX = -2,
@@ -59,8 +53,6 @@ private:
     typedef unsigned char byte;
     //  хендл файла 
     HANDLE              m_file;
-    QIODevice          *m_device;
-
     // заголовок DLIS
     StorageUnitLabel    m_storage_unit_label;
 
@@ -123,7 +115,7 @@ private:
     // актуальные (созданные последними) объекты  
     // нужны для быстрого заполнения свойств объектов при построении дерева DLIS
     DlisSet           *m_last_set;
-    DlisSet			  *m_last_root_set;
+    DlisSet	          *m_last_root_set;
     DlisObject        *m_last_object;
     DlisAttribute     *m_last_attribute;
     DlisAttribute     *m_last_column;
@@ -150,7 +142,6 @@ public:
 
     // парсинг DLIS
     bool            Parse(const wchar_t *file_name);
-    bool            Parse(QIODevice *device);
     // инициализация, выгрузка внутренних буферов и данных из парсера
     bool            Initialize();
     void            Shutdown();
