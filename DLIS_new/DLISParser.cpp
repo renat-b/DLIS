@@ -1318,7 +1318,7 @@ CDLISParser::FrameData *CDLISParser::FrameDataBuild(DlisValueObjName *obj_name)
         if (channels == frame_data->channels)
             channels->offsets = 0;
         else
-            channels->offsets = (channels - 1)->offsets + channels->dimension * channels->element_size;
+            channels->offsets = (channels - 1)->offsets + (channels - 1)->dimension * (channels - 1)->element_size;
 
         frame_data->len += s_rep_codes_length[channels->code - 1].length * channels->dimension;
 
